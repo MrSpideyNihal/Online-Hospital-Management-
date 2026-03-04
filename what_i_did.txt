@@ -1,154 +1,273 @@
 ============================================================
   DENTAL HOSPITAL MANAGEMENT SYSTEM (SaaS) - Progress Tracker
-  Last Updated: 2026-03-04
+  Last Updated: 2026-03-04 19:52 IST
 ============================================================
 
 PROJECT: Multi-Tenant Dental Hospital & Clinic Management System
-STACK: Next.js 16 (App Router) + Supabase + Tailwind CSS v4 + shadcn/ui
+STACK: Next.js 16.1.6 (App Router) + Supabase + Tailwind CSS v4 + shadcn/ui
 DEPLOYMENT: Netlify (configured with @netlify/plugin-nextjs)
 BUILD STATUS: ✅ PASSING (20 pages, compiled in 6.1s)
+REPO: Online-Hospital-Management- (GitHub)
 
 ============================================================
-COMPLETED WORK
+ARCHITECTURE OVERVIEW
 ============================================================
 
-[✅] 1. PROJECT SETUP
-  - Next.js 16.1.6 with TypeScript, Tailwind CSS v4
-  - 21 shadcn/ui components installed (button, card, input, label, select, 
-    dialog, sheet, table, tabs, badge, avatar, dropdown-menu, calendar,
-    separator, textarea, popover, command, scroll-area, switch, tooltip,
-    checkbox, sonner)
-  - Dependencies: @supabase/supabase-js, @supabase/ssr, @tanstack/react-query,
-    react-hook-form, zod, recharts, next-themes, lucide-react, qrcode.react,
-    jspdf, date-fns, sonner, etc.
-  - Netlify config (netlify.toml + @netlify/plugin-nextjs)
+src/
+├── app/
+│   ├── page.tsx                    ← Landing page (public)
+│   ├── login/page.tsx              ← Auth (Google OAuth + email/password)
+│   ├── auth/callback/route.ts      ← OAuth callback handler
+│   ├── dashboard/
+│   │   ├── layout.tsx              ← Sidebar + topbar layout
+│   │   ├── page.tsx                ← Dashboard overview (stats, queue)
+│   │   ├── patients/page.tsx       ← Patient CRUD + search
+│   │   ├── appointments/page.tsx   ← Appointment booking + views
+│   │   ├── visits/page.tsx         ← OPD queue management
+│   │   ├── doctors/page.tsx        ← Doctor management
+│   │   ├── dental-chart/page.tsx   ← Interactive SVG dental chart
+│   │   ├── prescriptions/page.tsx  ← Digital prescriptions
+│   │   ├── billing/page.tsx        ← Invoices + payments
+│   │   ├── reports/page.tsx        ← Analytics + charts
+│   │   └── settings/page.tsx       ← Hospital settings (4 tabs)
+│   ├── admin/
+│   │   ├── layout.tsx              ← Super admin layout (red theme)
+│   │   ├── page.tsx                ← Platform overview
+│   │   ├── hospitals/page.tsx      ← Hospital approve/reject/freeze
+│   │   ├── subscriptions/page.tsx  ← Subscription management
+│   │   ├── analytics/page.tsx      ← Platform analytics
+│   │   └── notifications/page.tsx  ← System notifications
+│   └── hospitals/[slug]/
+│       ├── page.tsx                ← Hospital public website
+│       └── about/page.tsx          ← Hospital about page
+├── components/
+│   ├── providers.tsx               ← QueryClient + Theme + Auth providers
+│   └── ui/                         ← 21 shadcn/ui components
+├── lib/
+│   ├── auth-context.tsx            ← Auth provider (user, profile, hospital, role)
+│   ├── utils.ts                    ← Utility functions + dental constants
+│   └── supabase/
+│       ├── client.ts               ← Browser Supabase client
+│       ├── server.ts               ← Server Supabase client
+│       ├── admin.ts                ← Admin (service role) client
+│       └── hooks.ts                ← 50+ React Query hooks for ALL CRUD
+└── types/
+    └── database.ts                 ← TypeScript types for all 13 tables
 
-[✅] 2. CORE INFRASTRUCTURE
-  - Supabase clients: browser (client.ts), server (server.ts), admin (admin.ts)
-  - Database schema: 13 tables with RLS policies (supabase/schema.sql)
-  - TypeScript types for all tables (src/types/database.ts)
-  - Utility functions: formatting, slug generation, dental constants (src/lib/utils.ts)
-  - Root layout with Inter font + Providers (QueryClient, ThemeProvider, Toaster)
-  - Design system: dental-themed colors, dark mode, animations, glassmorphism (globals.css)
-  - Middleware (simplified for Next.js 16 compatibility)
-  - .env.local.example template
-
-[✅] 3. CENTRAL PUBLIC PORTAL (Main Domain)
-  - Landing page (src/app/page.tsx): Hero with search, featured services,
-    hospital cards, stats, CTA for hospitals, footer
-  - Login page (src/app/login/page.tsx): Google OAuth + email/password,
-    sign-up/sign-in toggle, hospital registration flow, Suspense boundary
-  - Auth callback (src/app/auth/callback/route.ts): OAuth code exchange,
-    auto profile creation, force-dynamic
-
-[✅] 4. HOSPITAL ADMIN DASHBOARD (src/app/dashboard/*)
-  - Layout: Collapsible sidebar, mobile drawer, top bar with notifications,
-    user avatar dropdown, theme toggle
-  - Overview (page.tsx): Stats grid (6 metrics), quick actions (4 buttons),
-    today's appointments list, OPD queue
-  - Patients (patients/page.tsx): Search, add patient dialog (full form),
-    patient table with pagination, patient detail dialog, allergy badges
-  - Appointments (appointments/page.tsx): List/today views, status filtering,
-    search, book appointment dialog with procedure selection
-  - OPD Visits (visits/page.tsx): Live queue with status, quick check-in
-    dialog with vitals, queue stats cards
-  - Doctors (doctors/page.tsx): Doctor cards with specialization, schedule,
-    contact info, add doctor dialog
-  - Dental Chart (dental-chart/page.tsx): Interactive SVG with 32 teeth
-    (Universal Numbering), 10 condition types, color-coded visualization,
-    tooth detail panel, recorded conditions list
-  - Prescriptions (prescriptions/page.tsx): Prescriptions table with
-    diagnosis, medicines count, PDF download buttons
-  - Billing (billing/page.tsx): Revenue stats, invoices table with
-    payment status (paid/pending/partial), export buttons
-  - Reports (reports/page.tsx): Summary stats, chart placeholders for
-    Recharts, top services performance bars
-  - Settings (settings/page.tsx): 4 tabs (General, Branding with live
-    color preview, Location with Google Maps embed, QR Code)
-
-[✅] 5. HOSPITAL PUBLIC WEBSITE (src/app/hospitals/[slug]/*)
-  - Homepage: Customizable hero (dynamic colors from hospital settings),
-    services grid with pricing, doctors section with avatars, patient
-    testimonials, booking CTA, footer
-  - About page: Hospital story, contact info (address, phone, email, hours),
-    Google Maps placeholder, doctor team section
-
-[✅] 6. SUPER ADMIN PANEL (src/app/admin/*)
-  - Layout: Red-themed sidebar, navigation, admin mode indicator
-  - Dashboard: Platform-wide stats (hospitals, patients, revenue, growth),
-    pending hospital approvals with approve/reject, expiring subscriptions
-  - Hospitals: Hospital table with search, status filter (approved/pending/
-    frozen/rejected), approve/reject/freeze actions, plan badges
-  - Subscriptions: Revenue stats, subscription list with remind/extend actions
-  - Analytics: Platform stats, hospitals by city distribution, revenue by plan
-  - Notifications: Notification list with type badges, send/resend functionality
-
-[✅] 7. DATABASE SCHEMA (supabase/schema.sql)
-  Tables: hospitals, profiles, patients, doctors, appointments, visits,
-  dental_charts, treatments, prescriptions, invoices, notifications,
-  hospital_services, testimonials
-  - Row Level Security (RLS) on all tables for multi-tenant isolation
-  - Triggers for updated_at timestamps
-  - Functions for patient_id_number and invoice_number generation
-  - Indexes for performance
+Other key files:
+├── supabase/schema.sql             ← Complete DB schema (13 tables + RLS + triggers)
+├── netlify.toml                    ← Netlify deployment config
+├── .env.local                      ← Placeholder env vars (REPLACE before deploy)
+├── .env.local.example              ← Template for env vars
+└── package.json                    ← All dependencies
 
 ============================================================
-ALL PAGES (20 Routes)
-============================================================
-○ /                          - Landing page (public)
-○ /login                     - Auth page (Google OAuth + email)
-ƒ /auth/callback             - OAuth callback (dynamic)
-○ /dashboard                 - Hospital admin overview
-○ /dashboard/patients        - Patient management
-○ /dashboard/appointments    - Appointment scheduling
-○ /dashboard/visits          - OPD queue management
-○ /dashboard/doctors         - Doctor management
-○ /dashboard/dental-chart    - Interactive tooth chart
-○ /dashboard/prescriptions   - Digital prescriptions
-○ /dashboard/billing         - Invoices & payments
-○ /dashboard/reports         - Analytics & reports
-○ /dashboard/settings        - Hospital settings & branding
-ƒ /hospitals/[slug]          - Hospital public website (dynamic)
-ƒ /hospitals/[slug]/about    - Hospital about page (dynamic)
-○ /admin                     - Super admin dashboard
-○ /admin/hospitals           - Hospital approval & management
-○ /admin/subscriptions       - Subscription management
-○ /admin/analytics           - Platform analytics
-○ /admin/notifications       - System notifications
-
-============================================================
-REMAINING WORK (TODO)
+WHAT IS FULLY DONE ✅
 ============================================================
 
-[ ] Connect all pages to live Supabase data (replace demo data)
-[ ] Set up Supabase project and run schema.sql
-[ ] Configure Google OAuth in Supabase Auth settings
-[ ] Add real-time Supabase subscriptions for live updates
-[ ] Implement PDF generation for prescriptions (jspdf)
-[ ] Implement QR code generation for patients (qrcode.react)
-[ ] Add Recharts graphs to reports page
-[ ] Implement file uploads for hospital logo/banner (Supabase Storage)
-[ ] Add form validation with react-hook-form + zod
-[ ] Mobile responsiveness testing and polish
-[ ] Add loading states and skeleton screens
-[ ] Error boundary components
-[ ] SEO meta tags per page
-[ ] Set up Supabase environment variables on Netlify
-[ ] Deploy to Netlify
-[ ] End-to-end testing
+1. ALL 20 UI PAGES — built, styled, compiled, zero errors
+2. DATABASE SCHEMA (supabase/schema.sql):
+   - 13 tables: hospitals, profiles, patients, doctors, appointments,
+     visits, dental_charts, treatments, prescriptions, invoices,
+     notifications, hospital_services, testimonials
+   - Row Level Security (RLS) on all tables (multi-tenant via hospital_id)
+   - Auto-increment triggers for patient_id_number, invoice_number
+   - Indexes for performance
+3. SUPABASE CLIENTS: browser, server, admin (service role)
+4. AUTH CONTEXT (src/lib/auth-context.tsx):
+   - Manages user session, profile, hospital, role
+   - Listens to Supabase auth state changes
+   - Provides useAuth() hook for all pages
+   - Super admin detection
+5. SUPABASE HOOKS (src/lib/supabase/hooks.ts):
+   - 50+ React Query hooks covering ALL CRUD operations:
+     * usePatients, useCreatePatient, useUpdatePatient, useDeletePatient
+     * useDoctors, useCreateDoctor, useUpdateDoctor
+     * useAppointments, useCreateAppointment, useUpdateAppointment
+     * useVisits, useCreateVisit, useUpdateVisit
+     * useDentalChartRecords, useSaveDentalChartRecord
+     * usePrescriptions, useCreatePrescription
+     * useInvoices, useCreateInvoice, useUpdateInvoice
+     * useHospitalBySlug, useHospitalServices, useTestimonials
+     * useUpdateHospital, useSearchHospitals
+     * useAllHospitals, useApproveHospital, useRejectHospital, useFreezeHospital
+     * useDashboardStats (auto-refreshes every 30s)
+6. PROVIDERS: QueryClient + ThemeProvider + AuthProvider wired up
+7. NETLIFY CONFIG: netlify.toml + @netlify/plugin-nextjs
+8. DESIGN SYSTEM: Tailwind v4, dark mode, glassmorphism, animations, dental theme
+9. GIT: All committed and pushed to GitHub
 
 ============================================================
-KEY FILES REFERENCE
+WHAT STILL NEEDS TO BE DONE ❌
 ============================================================
-package.json                    - Dependencies & scripts
-netlify.toml                    - Netlify deployment config
-.env.local.example              - Environment variable template
-supabase/schema.sql             - Complete database schema
-src/lib/supabase/client.ts      - Browser Supabase client
-src/lib/supabase/server.ts      - Server Supabase client
-src/lib/supabase/admin.ts       - Admin (service role) client
-src/lib/utils.ts                - Utility functions & constants
-src/types/database.ts           - TypeScript type definitions
-src/app/globals.css             - Design system & custom CSS
-src/components/providers.tsx    - App-wide providers wrapper
-src/middleware.ts               - Route middleware (simplified)
+
+PRIORITY 1 — CONNECT PAGES TO SUPABASE HOOKS (replace demo data):
+--------------------------------------------------------------
+Each dashboard page currently shows HARDCODED DEMO DATA.
+The hooks in src/lib/supabase/hooks.ts are ready but NOT YET
+connected to the pages. Here's exactly what to do for each page:
+
+  a) Dashboard Overview (src/app/dashboard/page.tsx):
+     - Import { useAuth } from '@/lib/auth-context'
+     - Import { useDashboardStats, useAppointments, useVisits } from hooks
+     - Replace hardcoded stats with useDashboardStats(hospitalId)
+     - Replace demo appointments with useAppointments(hospitalId, { date: today })
+     - Replace demo OPD queue with useVisits(hospitalId, today)
+     - Add loading skeleton when data is loading
+
+  b) Patients (src/app/dashboard/patients/page.tsx):
+     - Import usePatients, useCreatePatient from hooks
+     - Replace DEMO_PATIENTS with usePatients(hospitalId).data
+     - Wire the "Add Patient" dialog form to useCreatePatient().mutate()
+     - Add toast notifications on success/error
+
+  c) Appointments (src/app/dashboard/appointments/page.tsx):
+     - Import useAppointments, useCreateAppointment, useDoctors from hooks
+     - Replace demo data with real queries
+     - Wire booking dialog to useCreateAppointment().mutate()
+     - Populate doctor dropdown from useDoctors()
+
+  d) OPD Visits (src/app/dashboard/visits/page.tsx):
+     - Import useVisits, useCreateVisit, useUpdateVisit from hooks
+     - Replace demo queue with real data
+     - Wire check-in dialog to useCreateVisit().mutate()
+     - Wire status updates to useUpdateVisit().mutate()
+
+  e) Doctors (src/app/dashboard/doctors/page.tsx):
+     - Import useDoctors, useCreateDoctor from hooks
+     - Replace demo data, wire add doctor form
+
+  f) Dental Chart (src/app/dashboard/dental-chart/page.tsx):
+     - Import useDentalChartRecords, useSaveDentalChartRecord from hooks
+     - Need a patient selector dropdown first
+     - Save/load chart data per patient
+
+  g) Prescriptions (src/app/dashboard/prescriptions/page.tsx):
+     - Import usePrescriptions from hooks
+     - Replace demo data with real query
+     - Implement PDF generation using jspdf (already installed)
+
+  h) Billing (src/app/dashboard/billing/page.tsx):
+     - Import useInvoices, useCreateInvoice from hooks
+     - Replace demo data with real query
+     - Wire create invoice dialog
+
+  i) Settings (src/app/dashboard/settings/page.tsx):
+     - Import useAuth for hospital data, useUpdateHospital
+     - Pre-fill form fields from hospital object
+     - Wire save buttons to useUpdateHospital().mutate()
+
+  j) Reports (src/app/dashboard/reports/page.tsx):
+     - Import useDashboardStats from hooks
+     - Replace placeholder charts with Recharts (recharts already installed)
+     - Create real bar/line charts
+
+  k) Dashboard Layout (src/app/dashboard/layout.tsx):
+     - Import useAuth, use it for user avatar/name display
+     - Wire signOut to useAuth().signOut
+
+  l) Hospital Public Website (src/app/hospitals/[slug]/page.tsx):
+     - Import useHospitalBySlug, useHospitalServices, useDoctors, useTestimonials
+     - Replace hardcoded HOSPITAL object with real query by slug
+     - Show loading state while fetching
+
+  m) Super Admin pages (src/app/admin/*.tsx):
+     - Import useAllHospitals, useApproveHospital, etc.
+     - Replace demo data with real queries
+     - Wire approve/reject/freeze buttons to mutations
+
+PRIORITY 2 — SUPABASE PROJECT SETUP:
+--------------------------------------------------------------
+  1. Go to https://supabase.com → Create new project
+  2. Go to SQL Editor → paste entire contents of supabase/schema.sql → Run
+  3. Go to Settings → API → Copy:
+     - Project URL → NEXT_PUBLIC_SUPABASE_URL
+     - anon public key → NEXT_PUBLIC_SUPABASE_ANON_KEY
+     - service_role key → SUPABASE_SERVICE_ROLE_KEY
+  4. Update .env.local with real values
+  5. Go to Authentication → Providers → Enable Google OAuth
+     (needs Google Cloud Console OAuth credentials)
+
+PRIORITY 3 — ADDITIONAL FEATURES:
+--------------------------------------------------------------
+  [ ] PDF prescription generation (jspdf is installed, wire it up)
+  [ ] QR code generation for patients (qrcode.react is installed)
+  [ ] File uploads for hospital logo/banner (Supabase Storage)
+  [ ] Form validation with react-hook-form + zod on all forms
+  [ ] Loading skeletons / shimmer states on all pages
+  [ ] Error boundary components
+  [ ] Recharts graphs on reports page
+  [ ] Supabase Realtime for live OPD queue updates
+  [ ] Mobile responsiveness testing
+  [ ] SEO meta tags per page
+
+PRIORITY 4 — DEPLOY:
+--------------------------------------------------------------
+  1. Push to GitHub
+  2. Connect repo to Netlify
+  3. Add env vars in Netlify dashboard:
+     - NEXT_PUBLIC_SUPABASE_URL
+     - NEXT_PUBLIC_SUPABASE_ANON_KEY
+     - SUPABASE_SERVICE_ROLE_KEY
+     - SUPER_ADMIN_EMAIL
+  4. Deploy (netlify.toml handles the rest)
+
+============================================================
+HOW TO USE THE HOOKS (EXAMPLE)
+============================================================
+
+Here's a quick example of how to wire a page to Supabase:
+
+BEFORE (demo data):
+```tsx
+const DEMO = [{ id: '1', name: 'Rahul' }, ...]
+// ... renders DEMO array
+```
+
+AFTER (real Supabase data):
+```tsx
+import { useAuth } from '@/lib/auth-context'
+import { usePatients, useCreatePatient } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
+
+export default function PatientsPage() {
+  const { hospitalId } = useAuth()
+  const { data: patients, isLoading } = usePatients(hospitalId)
+  const createPatient = useCreatePatient()
+
+  const handleAdd = async (formData) => {
+    try {
+      await createPatient.mutateAsync({
+        hospital_id: hospitalId!,
+        full_name: formData.name,
+        phone: formData.phone,
+        // ... other fields
+      })
+      toast.success('Patient added!')
+    } catch (err) {
+      toast.error('Failed to add patient')
+    }
+  }
+
+  if (isLoading) return <div>Loading...</div>
+
+  return (
+    // ... render patients (from `patients` variable, not DEMO)
+  )
+}
+```
+
+============================================================
+INSTALLED DEPENDENCIES (package.json)
+============================================================
+@supabase/supabase-js, @supabase/ssr, @tanstack/react-query,
+@hookform/resolvers, react-hook-form, zod, recharts, next-themes,
+lucide-react, qrcode.react, jspdf, date-fns, sonner, clsx,
+tailwind-merge, class-variance-authority, cmdk, radix-ui,
+react-day-picker, @netlify/plugin-nextjs, tailwindcss@4.1.0,
+@tailwindcss/postcss@4.1.0, tw-animate-css, shadcn
+
+21 shadcn/ui components: button, card, input, label, select,
+dialog, sheet, table, tabs, badge, avatar, dropdown-menu, calendar,
+separator, textarea, popover, command, scroll-area, switch,
+tooltip, checkbox, sonner
