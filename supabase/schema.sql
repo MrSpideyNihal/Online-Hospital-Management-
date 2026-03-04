@@ -307,9 +307,27 @@ ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE testimonials ENABLE ROW LEVEL SECURITY;
 
--- HOSPITALS: Anyone can read approved hospitals, owners can update
+-- =============================================================================
+-- HELPER FUNCTIONS (SECURITY DEFINER = bypass RLS, prevents infinite recursion)
+-- =============================================================================
+CREATE OR REPLACE FUNCTION public.get_my_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+CREATE OR REPLACE FUNCTION public.get_my_hospital_id()
+RETURNS UUID AS $$
+  SELECT hospital_id FROM public.profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- =============================================================================
+-- HOSPITALS: Anyone can read approved, owners can update, auth users can insert
+-- =============================================================================
 CREATE POLICY "Public can view approved hospitals" ON hospitals
   FOR SELECT USING (status = 'approved');
+
+CREATE POLICY "Super admin can view all hospitals" ON hospitals
+  FOR SELECT USING (public.get_my_role() = 'super_admin');
 
 CREATE POLICY "Hospital owners can update their hospital" ON hospitals
   FOR UPDATE USING (owner_id = auth.uid());
@@ -317,7 +335,9 @@ CREATE POLICY "Hospital owners can update their hospital" ON hospitals
 CREATE POLICY "Authenticated users can insert hospitals" ON hospitals
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
--- HOSPITAL SERVICES: Public read for approved hospitals, staff manage
+-- =============================================================================
+-- HOSPITAL SERVICES
+-- =============================================================================
 CREATE POLICY "Public can view services of approved hospitals" ON hospital_services
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM hospitals WHERE id = hospital_id AND status = 'approved')
@@ -325,26 +345,20 @@ CREATE POLICY "Public can view services of approved hospitals" ON hospital_servi
 
 CREATE POLICY "Hospital staff can manage services" ON hospital_services
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = hospital_services.hospital_id
-      AND profiles.role IN ('hospital_admin', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'receptionist')
   );
 
--- PROFILES: Users see their own, staff see hospital profiles
+-- =============================================================================
+-- PROFILES: NO self-referencing queries — use direct auth.uid() checks
+-- =============================================================================
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (id = auth.uid());
 
-CREATE POLICY "Hospital staff can view hospital profiles" ON profiles
+CREATE POLICY "Staff can view same-hospital profiles" ON profiles
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles AS p
-      WHERE p.id = auth.uid()
-      AND p.hospital_id = profiles.hospital_id
-      AND p.role IN ('hospital_admin', 'doctor', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor', 'receptionist')
   );
 
 CREATE POLICY "Users can update own profile" ON profiles
@@ -353,15 +367,13 @@ CREATE POLICY "Users can update own profile" ON profiles
 CREATE POLICY "Anyone can insert their profile" ON profiles
   FOR INSERT WITH CHECK (id = auth.uid());
 
--- PATIENTS: Hospital staff can manage, patients see own records
+-- =============================================================================
+-- PATIENTS
+-- =============================================================================
 CREATE POLICY "Hospital staff can view patients" ON patients
   FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = patients.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor', 'receptionist')
   );
 
 CREATE POLICY "Patients can view own record" ON patients
@@ -369,15 +381,13 @@ CREATE POLICY "Patients can view own record" ON patients
 
 CREATE POLICY "Hospital staff can manage patients" ON patients
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = patients.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor', 'receptionist')
   );
 
--- DOCTORS: Public read for approved hospitals, staff manage
+-- =============================================================================
+-- DOCTORS
+-- =============================================================================
 CREATE POLICY "Public can view doctors of approved hospitals" ON doctors
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM hospitals WHERE id = hospital_id AND status = 'approved')
@@ -385,23 +395,17 @@ CREATE POLICY "Public can view doctors of approved hospitals" ON doctors
 
 CREATE POLICY "Hospital admin can manage doctors" ON doctors
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = doctors.hospital_id
-      AND profiles.role = 'hospital_admin'
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() = 'hospital_admin'
   );
 
--- APPOINTMENTS: Staff manage, patients see own
+-- =============================================================================
+-- APPOINTMENTS
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage appointments" ON appointments
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = appointments.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor', 'receptionist')
   );
 
 CREATE POLICY "Patients can view own appointments" ON appointments
@@ -422,15 +426,13 @@ CREATE POLICY "Patients can create appointments" ON appointments
     )
   );
 
--- VISITS: Staff manage
+-- =============================================================================
+-- VISITS
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage visits" ON visits
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = visits.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor', 'receptionist')
   );
 
 CREATE POLICY "Patients can view own visits" ON visits
@@ -442,15 +444,13 @@ CREATE POLICY "Patients can view own visits" ON visits
     )
   );
 
--- DENTAL CHARTS: Staff manage, patients view own
+-- =============================================================================
+-- DENTAL CHARTS
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage dental charts" ON dental_charts
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = dental_charts.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor')
   );
 
 CREATE POLICY "Patients can view own dental charts" ON dental_charts
@@ -462,15 +462,13 @@ CREATE POLICY "Patients can view own dental charts" ON dental_charts
     )
   );
 
--- TREATMENTS: Staff manage, patients view own
+-- =============================================================================
+-- TREATMENTS
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage treatments" ON treatments
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = treatments.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor')
   );
 
 CREATE POLICY "Patients can view own treatments" ON treatments
@@ -482,15 +480,13 @@ CREATE POLICY "Patients can view own treatments" ON treatments
     )
   );
 
--- PRESCRIPTIONS: Staff manage, patients view own
+-- =============================================================================
+-- PRESCRIPTIONS
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage prescriptions" ON prescriptions
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = prescriptions.hospital_id
-      AND profiles.role IN ('hospital_admin', 'doctor')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'doctor')
   );
 
 CREATE POLICY "Patients can view own prescriptions" ON prescriptions
@@ -502,15 +498,13 @@ CREATE POLICY "Patients can view own prescriptions" ON prescriptions
     )
   );
 
--- INVOICES: Staff manage, patients view own
+-- =============================================================================
+-- INVOICES
+-- =============================================================================
 CREATE POLICY "Hospital staff can manage invoices" ON invoices
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = invoices.hospital_id
-      AND profiles.role IN ('hospital_admin', 'receptionist')
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() IN ('hospital_admin', 'receptionist')
   );
 
 CREATE POLICY "Patients can view own invoices" ON invoices
@@ -522,7 +516,9 @@ CREATE POLICY "Patients can view own invoices" ON invoices
     )
   );
 
--- NOTIFICATIONS: Users see own
+-- =============================================================================
+-- NOTIFICATIONS
+-- =============================================================================
 CREATE POLICY "Users can view own notifications" ON notifications
   FOR SELECT USING (user_id = auth.uid());
 
@@ -532,7 +528,9 @@ CREATE POLICY "Users can update own notifications" ON notifications
 CREATE POLICY "Staff can create notifications" ON notifications
   FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 
--- TESTIMONIALS: Public read for approved, staff manage
+-- =============================================================================
+-- TESTIMONIALS
+-- =============================================================================
 CREATE POLICY "Public can view approved testimonials" ON testimonials
   FOR SELECT USING (
     is_approved = true AND
@@ -541,12 +539,8 @@ CREATE POLICY "Public can view approved testimonials" ON testimonials
 
 CREATE POLICY "Hospital admin can manage testimonials" ON testimonials
   FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-      AND profiles.hospital_id = testimonials.hospital_id
-      AND profiles.role = 'hospital_admin'
-    )
+    hospital_id = public.get_my_hospital_id()
+    AND public.get_my_role() = 'hospital_admin'
   );
 
 -- =============================================================================
