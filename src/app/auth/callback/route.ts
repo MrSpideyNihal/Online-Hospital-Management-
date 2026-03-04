@@ -85,22 +85,22 @@ export async function GET(request: Request) {
                     return NextResponse.redirect(`${origin}/patient`)
                 }
 
-                // Existing user — check super admin
-                if (isThisSuperAdmin) {
-                    if (existingProfile.role !== 'super_admin') {
-                        await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
-                    }
-                    return NextResponse.redirect(`${origin}/admin`)
+                // Determine effective role: env-var super admin OR DB role
+                const effectiveRole = isThisSuperAdmin ? 'super_admin' : existingProfile.role
+
+                // Upgrade to super_admin in DB if env var says so
+                if (isThisSuperAdmin && existingProfile.role !== 'super_admin') {
+                    await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
                 }
 
-                // Route based on existing role
-                if (existingProfile.role === 'super_admin') {
+                // Route based on effective role
+                if (effectiveRole === 'super_admin') {
                     return NextResponse.redirect(`${origin}/admin`)
                 }
-                if (existingProfile.role === 'patient') {
+                if (effectiveRole === 'patient') {
                     return NextResponse.redirect(`${origin}/patient`)
                 }
-                if (['hospital_admin', 'doctor', 'receptionist'].includes(existingProfile.role)) {
+                if (['hospital_admin', 'doctor', 'receptionist'].includes(effectiveRole)) {
                     return NextResponse.redirect(`${origin}/dashboard`)
                 }
             }
