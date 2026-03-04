@@ -266,5 +266,6 @@ export interface DashboardStats {
     todayVisits: number
     totalDoctors: number
     totalRevenue: number
+    todayRevenue: number
     pendingPayments: number
 }

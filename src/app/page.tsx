@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { Search, MapPin, Star, ArrowRight, Sparkles, Shield, Clock, Users, Phone, Stethoscope, ChevronRight } from 'lucide-react'
+import { Search, MapPin, Star, ArrowRight, Sparkles, Shield, Clock, Users, Phone, Stethoscope, ChevronRight, Sun, Moon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { useSearchHospitals } from '@/lib/supabase/hooks'
 
 const FEATURED_SERVICES = [
   { name: 'Root Canal', icon: '🦷', color: 'from-blue-500 to-cyan-500' },
@@ -15,45 +17,6 @@ const FEATURED_SERVICES = [
   { name: 'Teeth Whitening', icon: '✨', color: 'from-amber-500 to-yellow-500' },
   { name: 'Smile Design', icon: '😃', color: 'from-rose-500 to-red-500' },
   { name: 'Pediatric', icon: '👶', color: 'from-indigo-500 to-violet-500' },
-]
-
-const DEMO_HOSPITALS = [
-  {
-    id: '1',
-    name: 'SmileCare Dental Hospital',
-    slug: 'smilecare-dental',
-    city: 'Mumbai',
-    address: 'Andheri West, Mumbai 400058',
-    rating: 4.8,
-    total_reviews: 256,
-    logo_url: null,
-    services: ['Root Canal', 'Implants', 'Braces', 'Smile Design'],
-    primary_color: '#0ea5e9',
-  },
-  {
-    id: '2',
-    name: 'DentPro Clinic',
-    slug: 'dentpro-clinic',
-    city: 'Delhi',
-    address: 'Connaught Place, New Delhi 110001',
-    rating: 4.6,
-    total_reviews: 189,
-    logo_url: null,
-    services: ['Teeth Whitening', 'Root Canal', 'Crowns'],
-    primary_color: '#6366f1',
-  },
-  {
-    id: '3',
-    name: 'PearlSmile Dental',
-    slug: 'pearlsmile',
-    city: 'Bangalore',
-    address: 'Koramangala, Bangalore 560034',
-    rating: 4.9,
-    total_reviews: 312,
-    logo_url: null,
-    services: ['Implants', 'Orthodontics', 'Pediatric Dentistry'],
-    primary_color: '#14b8a6',
-  },
 ]
 
 const STATS = [
@@ -66,13 +29,15 @@ const STATS = [
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
+  const { theme, setTheme } = useTheme()
 
-  const filteredHospitals = DEMO_HOSPITALS.filter((h) => {
-    const matchesSearch = h.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      h.address.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCity = !selectedCity || h.city === selectedCity
-    return matchesSearch && matchesCity
-  })
+  // Fetch live approved hospitals based on search; default shows all approved when query=""
+  const { data: hospitals = [] } = useSearchHospitals(searchQuery || ' ', selectedCity || undefined)
+
+  // Client-side fallback filter for empty query
+  const filteredHospitals = searchQuery || selectedCity
+    ? hospitals
+    : hospitals.slice(0, 6)
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,6 +52,9 @@ export default function HomePage() {
               <span className="text-xl font-bold gradient-text">DentalHub</span>
             </Link>
             <div className="flex items-center gap-3">
+              <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </Button>
               <Link href="/login">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
@@ -208,20 +176,21 @@ export default function HomePage() {
           </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredHospitals.map((hospital) => (
+            {filteredHospitals.map((hospital) => {
+              const color = hospital.primary_color || '#0ea5e9'
+              return (
               <Link key={hospital.id} href={`/hospitals/${hospital.slug}`}>
                 <Card className="group hover:shadow-xl hover:shadow-primary/5 transition-all duration-300 hover:-translate-y-1 overflow-hidden cursor-pointer border-border/50">
-                  {/* Banner gradient */}
                   <div
                     className="h-32 bg-gradient-to-br relative"
                     style={{
-                      background: `linear-gradient(135deg, ${hospital.primary_color}20, ${hospital.primary_color}40)`
+                      background: `linear-gradient(135deg, ${color}20, ${color}40)`
                     }}
                   >
                     <div className="absolute bottom-0 left-6 translate-y-1/2">
                       <div
                         className="w-16 h-16 rounded-2xl border-4 border-card flex items-center justify-center text-2xl font-bold text-white shadow-lg"
-                        style={{ backgroundColor: hospital.primary_color }}
+                        style={{ backgroundColor: color }}
                       >
                         {hospital.name[0]}
                       </div>
@@ -235,33 +204,19 @@ export default function HomePage() {
                       </h3>
                       <div className="flex items-center gap-1 text-amber-500">
                         <Star className="w-4 h-4 fill-current" />
-                        <span className="text-sm font-medium">{hospital.rating}</span>
-                        <span className="text-xs text-muted-foreground">({hospital.total_reviews})</span>
+                        <span className="text-sm font-medium">{hospital.rating ?? '—'}</span>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-1.5 text-muted-foreground text-sm mb-4">
                       <MapPin className="w-3.5 h-3.5" />
-                      {hospital.address}
-                    </div>
-
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {hospital.services.slice(0, 3).map((service) => (
-                        <Badge key={service} variant="secondary" className="text-xs font-normal">
-                          {service}
-                        </Badge>
-                      ))}
-                      {hospital.services.length > 3 && (
-                        <Badge variant="secondary" className="text-xs font-normal">
-                          +{hospital.services.length - 3} more
-                        </Badge>
-                      )}
+                      {hospital.address || hospital.city || 'India'}
                     </div>
 
                     <div className="flex items-center justify-between pt-4 border-t">
                       <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <Phone className="w-3.5 h-3.5" />
-                        Contact Available
+                        {hospital.phone || 'Contact Available'}
                       </div>
                       <Button variant="ghost" size="sm" className="text-primary">
                         Visit <ChevronRight className="w-4 h-4 ml-1" />
@@ -270,7 +225,8 @@ export default function HomePage() {
                   </CardContent>
                 </Card>
               </Link>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>

@@ -33,46 +33,93 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
     Search, UserPlus, MoreHorizontal, Edit, Trash2, Eye,
-    Phone, Mail, MapPin, Filter, Download, ChevronLeft, ChevronRight,
+    Phone, Mail, MapPin, Filter, Download, ChevronLeft, ChevronRight, Loader2, QrCode,
 } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { formatDate } from '@/lib/utils'
-
-interface PatientData {
-    id: string
-    patient_id_number: string
-    full_name: string
-    email: string
-    phone: string
-    gender: string
-    date_of_birth: string
-    blood_group: string
-    address: string
-    city: string
-    allergies: string[]
-    last_visit: string | null
-    created_at: string
-}
-
-const DEMO_PATIENTS: PatientData[] = [
-    { id: '1', patient_id_number: 'PAT-00001', full_name: 'Rahul Sharma', email: 'rahul@gmail.com', phone: '+91 98765 43210', gender: 'male', date_of_birth: '1990-05-15', blood_group: 'B+', address: '123 MG Road', city: 'Mumbai', allergies: ['Penicillin'], last_visit: '2026-03-01', created_at: '2025-01-10' },
-    { id: '2', patient_id_number: 'PAT-00002', full_name: 'Anita Desai', email: 'anita@gmail.com', phone: '+91 87654 32109', gender: 'female', date_of_birth: '1985-08-22', blood_group: 'O+', address: '456 Park Street', city: 'Delhi', allergies: [], last_visit: '2026-02-28', created_at: '2025-02-15' },
-    { id: '3', patient_id_number: 'PAT-00003', full_name: 'Vikram Singh', email: 'vikram@gmail.com', phone: '+91 76543 21098', gender: 'male', date_of_birth: '1978-12-03', blood_group: 'A+', address: '789 Anna Nagar', city: 'Chennai', allergies: ['Aspirin', 'Latex'], last_visit: '2026-03-03', created_at: '2025-03-01' },
-    { id: '4', patient_id_number: 'PAT-00004', full_name: 'Meera Joshi', email: 'meera@gmail.com', phone: '+91 65432 10987', gender: 'female', date_of_birth: '1995-03-18', blood_group: 'AB+', address: '321 Banjara Hills', city: 'Hyderabad', allergies: [], last_visit: null, created_at: '2025-04-20' },
-    { id: '5', patient_id_number: 'PAT-00005', full_name: 'Arjun Nair', email: 'arjun@gmail.com', phone: '+91 54321 09876', gender: 'male', date_of_birth: '2000-07-25', blood_group: 'B-', address: '654 MG Road', city: 'Bangalore', allergies: ['Codeine'], last_visit: '2026-02-25', created_at: '2025-05-10' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { usePatients, useCreatePatient, useDeletePatient } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
+import type { Patient } from '@/types/database'
 
 export default function PatientsPage() {
+    const { hospitalId } = useAuth()
+    const { data: patients = [], isLoading } = usePatients(hospitalId)
+    const createPatient = useCreatePatient()
+    const deletePatient = useDeletePatient()
+
     const [search, setSearch] = useState('')
-    const [patients] = useState<PatientData[]>(DEMO_PATIENTS)
     const [isAddOpen, setIsAddOpen] = useState(false)
-    const [selectedPatient, setSelectedPatient] = useState<PatientData | null>(null)
+    const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
+    const [qrPatient, setQrPatient] = useState<Patient | null>(null)
+
+    // Form state
+    const [formName, setFormName] = useState('')
+    const [formEmail, setFormEmail] = useState('')
+    const [formPhone, setFormPhone] = useState('')
+    const [formDob, setFormDob] = useState('')
+    const [formGender, setFormGender] = useState('')
+    const [formBloodGroup, setFormBloodGroup] = useState('')
+    const [formAddress, setFormAddress] = useState('')
+    const [formCity, setFormCity] = useState('')
+    const [formEmergencyName, setFormEmergencyName] = useState('')
+    const [formEmergencyPhone, setFormEmergencyPhone] = useState('')
+    const [formAllergies, setFormAllergies] = useState('')
+    const [formMedicalHistory, setFormMedicalHistory] = useState('')
+
+    const resetForm = () => {
+        setFormName(''); setFormEmail(''); setFormPhone(''); setFormDob(''); setFormGender('');
+        setFormBloodGroup(''); setFormAddress(''); setFormCity(''); setFormEmergencyName('');
+        setFormEmergencyPhone(''); setFormAllergies(''); setFormMedicalHistory('');
+    }
+
+    const handleCreatePatient = () => {
+        if (!hospitalId || !formName.trim()) {
+            toast.error('Please fill in required fields')
+            return
+        }
+        createPatient.mutate({
+            hospital_id: hospitalId,
+            full_name: formName.trim(),
+            email: formEmail || null,
+            phone: formPhone || null,
+            date_of_birth: formDob || null,
+            gender: (formGender as 'male' | 'female' | 'other') || null,
+            blood_group: formBloodGroup || null,
+            address: formAddress || null,
+            city: formCity || null,
+            emergency_contact_name: formEmergencyName || null,
+            emergency_contact_phone: formEmergencyPhone || null,
+            allergies: formAllergies ? formAllergies.split(',').map(a => a.trim()) : [],
+            medical_history: formMedicalHistory || null,
+        }, {
+            onSuccess: () => { toast.success('Patient created successfully'); setIsAddOpen(false); resetForm() },
+            onError: (e) => toast.error(e.message),
+        })
+    }
+
+    const handleDelete = (id: string) => {
+        if (!hospitalId) return
+        deletePatient.mutate({ id, hospitalId }, {
+            onSuccess: () => toast.success('Patient deleted'),
+            onError: (e) => toast.error(e.message),
+        })
+    }
 
     const filtered = patients.filter(p =>
         p.full_name.toLowerCase().includes(search.toLowerCase()) ||
-        p.patient_id_number.toLowerCase().includes(search.toLowerCase()) ||
-        p.phone.includes(search) ||
-        p.email.toLowerCase().includes(search.toLowerCase())
+        (p.patient_id_number || '').toLowerCase().includes(search.toLowerCase()) ||
+        (p.phone || '').includes(search) ||
+        (p.email || '').toLowerCase().includes(search.toLowerCase())
     )
+
+    if (isLoading) {
+        return (
+            <div className="min-h-[50vh] flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -100,23 +147,23 @@ export default function PatientsPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                                 <div className="space-y-1.5">
                                     <Label htmlFor="full_name">Full Name *</Label>
-                                    <Input id="full_name" placeholder="Enter full name" />
+                                    <Input id="full_name" placeholder="Enter full name" value={formName} onChange={(e) => setFormName(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="email">Email</Label>
-                                    <Input id="email" type="email" placeholder="patient@email.com" />
+                                    <Input id="email" type="email" placeholder="patient@email.com" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="phone">Phone *</Label>
-                                    <Input id="phone" placeholder="+91 XXXXX XXXXX" />
+                                    <Input id="phone" placeholder="+91 XXXXX XXXXX" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="dob">Date of Birth</Label>
-                                    <Input id="dob" type="date" />
+                                    <Input id="dob" type="date" value={formDob} onChange={(e) => setFormDob(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="gender">Gender</Label>
-                                    <select id="gender" className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                                    <select id="gender" className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={formGender} onChange={(e) => setFormGender(e.target.value)}>
                                         <option value="">Select gender</option>
                                         <option value="male">Male</option>
                                         <option value="female">Female</option>
@@ -125,7 +172,7 @@ export default function PatientsPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="blood_group">Blood Group</Label>
-                                    <select id="blood_group" className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm">
+                                    <select id="blood_group" className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={formBloodGroup} onChange={(e) => setFormBloodGroup(e.target.value)}>
                                         <option value="">Select</option>
                                         {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => (
                                             <option key={bg} value={bg}>{bg}</option>
@@ -134,35 +181,35 @@ export default function PatientsPage() {
                                 </div>
                                 <div className="sm:col-span-2 space-y-1.5">
                                     <Label htmlFor="address">Address</Label>
-                                    <Input id="address" placeholder="Full address" />
+                                    <Input id="address" placeholder="Full address" value={formAddress} onChange={(e) => setFormAddress(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="city">City</Label>
-                                    <Input id="city" placeholder="City" />
+                                    <Input id="city" placeholder="City" value={formCity} onChange={(e) => setFormCity(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="emergency_name">Emergency Contact</Label>
-                                    <Input id="emergency_name" placeholder="Contact name" />
+                                    <Input id="emergency_name" placeholder="Contact name" value={formEmergencyName} onChange={(e) => setFormEmergencyName(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="emergency_phone">Emergency Phone</Label>
-                                    <Input id="emergency_phone" placeholder="+91 XXXXX XXXXX" />
+                                    <Input id="emergency_phone" placeholder="+91 XXXXX XXXXX" value={formEmergencyPhone} onChange={(e) => setFormEmergencyPhone(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="allergies">Allergies</Label>
-                                    <Input id="allergies" placeholder="Comma-separated (e.g., Penicillin, Latex)" />
+                                    <Input id="allergies" placeholder="Comma-separated (e.g., Penicillin, Latex)" value={formAllergies} onChange={(e) => setFormAllergies(e.target.value)} />
                                 </div>
                                 <div className="sm:col-span-2 space-y-1.5">
                                     <Label htmlFor="medical_history">Medical History</Label>
-                                    <Textarea id="medical_history" placeholder="Any relevant medical history..." rows={3} />
+                                    <Textarea id="medical_history" placeholder="Any relevant medical history..." rows={3} value={formMedicalHistory} onChange={(e) => setFormMedicalHistory(e.target.value)} />
                                 </div>
                             </div>
                             <DialogFooter>
                                 <DialogClose asChild>
                                     <Button variant="outline">Cancel</Button>
                                 </DialogClose>
-                                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={() => setIsAddOpen(false)}>
-                                    Save Patient
+                                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreatePatient} disabled={createPatient.isPending}>
+                                    {createPatient.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Saving...</> : 'Save Patient'}
                                 </Button>
                             </DialogFooter>
                         </DialogContent>
@@ -223,7 +270,7 @@ export default function PatientsPage() {
                                                     </div>
                                                     <div>
                                                         <p className="font-medium text-sm">{patient.full_name}</p>
-                                                        {patient.allergies.length > 0 && (
+                                                        {patient.allergies && patient.allergies.length > 0 && (
                                                             <div className="flex gap-1 mt-0.5">
                                                                 {patient.allergies.map(a => (
                                                                     <Badge key={a} variant="destructive" className="text-[9px] px-1 py-0 h-4">{a}</Badge>
@@ -260,10 +307,13 @@ export default function PatientsPage() {
                                                         <DropdownMenuItem onClick={() => setSelectedPatient(patient)}>
                                                             <Eye className="w-4 h-4 mr-2" /> View Details
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setQrPatient(patient)}>
+                                                            <QrCode className="w-4 h-4 mr-2" /> QR Code
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem>
                                                             <Edit className="w-4 h-4 mr-2" /> Edit
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive">
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(patient.id)}>
                                                             <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
@@ -315,10 +365,10 @@ export default function PatientsPage() {
                                 <div><span className="text-muted-foreground">Phone:</span> <span className="font-medium block">{selectedPatient.phone}</span></div>
                                 <div><span className="text-muted-foreground">Gender:</span> <span className="font-medium block capitalize">{selectedPatient.gender}</span></div>
                                 <div><span className="text-muted-foreground">Blood Group:</span> <span className="font-medium block">{selectedPatient.blood_group}</span></div>
-                                <div><span className="text-muted-foreground">DOB:</span> <span className="font-medium block">{formatDate(selectedPatient.date_of_birth)}</span></div>
+                                <div><span className="text-muted-foreground">DOB:</span> <span className="font-medium block">{selectedPatient.date_of_birth ? formatDate(selectedPatient.date_of_birth) : '—'}</span></div>
                                 <div><span className="text-muted-foreground">City:</span> <span className="font-medium block">{selectedPatient.city}</span></div>
                                 <div className="col-span-2"><span className="text-muted-foreground">Address:</span> <span className="font-medium block">{selectedPatient.address}</span></div>
-                                {selectedPatient.allergies.length > 0 && (
+                                {selectedPatient.allergies && selectedPatient.allergies.length > 0 && (
                                     <div className="col-span-2">
                                         <span className="text-muted-foreground">Allergies:</span>
                                         <div className="flex gap-1 mt-1">{selectedPatient.allergies.map(a => <Badge key={a} variant="destructive" className="text-xs">{a}</Badge>)}</div>
@@ -329,6 +379,41 @@ export default function PatientsPage() {
                                 <MapPin className="w-3 h-3" />
                                 Registered on {formatDate(selectedPatient.created_at)}
                             </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" size="sm" onClick={() => { setSelectedPatient(null); if (selectedPatient) setQrPatient(selectedPatient) }}>
+                            <QrCode className="w-4 h-4 mr-1.5" /> Show QR
+                        </Button>
+                        <DialogClose asChild>
+                            <Button variant="outline">Close</Button>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* QR Code Dialog */}
+            <Dialog open={!!qrPatient} onOpenChange={() => setQrPatient(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Patient QR Code</DialogTitle>
+                    </DialogHeader>
+                    {qrPatient && (
+                        <div className="flex flex-col items-center gap-4 py-4">
+                            <div className="p-4 bg-white rounded-xl">
+                                <QRCodeSVG
+                                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}/qr/${qrPatient.id}`}
+                                    size={200}
+                                    level="H"
+                                />
+                            </div>
+                            <div className="text-center">
+                                <p className="font-semibold">{qrPatient.full_name}</p>
+                                <p className="text-sm text-muted-foreground font-mono">{qrPatient.patient_id_number}</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground text-center">
+                                Scan this QR code to view patient information. Print and attach to patient file.
+                            </p>
                         </div>
                     )}
                     <DialogFooter>

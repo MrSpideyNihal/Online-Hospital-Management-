@@ -1,0 +1,95 @@
+You are an expert full-stack SaaS architect and healthcare software specialist. Build a complete, modern, production-ready **Multi-Tenant Dental Hospital & Clinic Management System** (SaaS) as a web application using Next.js 15 (App Router) + Supabase.
+
+### Business Model & Overall Architecture
+This is a white-label SaaS product that you will sell to multiple independent dental hospitals/clinics.
+- Each hospital gets its own fully isolated instance (multi-tenant with hospital_id + Row Level Security).
+- Hospitals can fully customize their public website and branding.
+- There is a central public directory so patients can discover hospitals.
+- Super Admin (your email, stored in env) controls everything.
+
+### 3 Main Parts of the Application
+
+1. **Central Public Patient Portal (Main Domain)**
+   - Beautiful landing page: “Find the Best Dental Hospital Near You”
+   - Search bar: Patients can search hospitals by **name** or **location** (city, area, pincode).
+   - Filters: City, Services (Root Canal, Implants, Braces, Smile Design, etc.).
+   - Results show cards with hospital logo, name, address, rating, and “Visit Website” button.
+   - Clicking a hospital redirects to that hospital’s custom public website (see point 2).
+   - Global patient login with **Google (Gmail) OAuth** – required to book appointments or view history.
+
+2. **Each Hospital’s Public Website** (custom per hospital)
+   - Homepage: Hero banner (customizable image + text), services (dental-specific cards), testimonials, “Book Appointment” CTA.
+   - About Us page: Hospital name, full address & location (Google Maps embed), history, mission, contact.
+   - All customization (logo, colors, banner, about text, address, location details) is done from the hospital admin Settings page.
+   - Public QR feature: Any patient can scan a QR (generated in admin) to see basic public details (name, last visit, upcoming appointment, allergies) without login.
+   - Appointment booking button → redirects to booking form (requires Google login).
+
+3. **Hospital Admin Dashboard** (private – only approved hospitals)
+   - Secure login (Supabase Auth: email/password + Google for staff).
+   - Roles: Hospital_Admin, Doctor, Receptionist.
+   - **Settings** tab (new requirement):
+     - Upload logo, set primary/secondary colors.
+     - Edit hospital name, address, phone, email, Google Maps location (lat/long or embed code).
+     - Edit About Us content (used in public site + search results).
+     - Manage QR templates.
+   - All features from your old Python project[](https://github.com/MrSpideyNihal/Hospital_management_system) modernized and bug-free:
+     - Dashboard with real-time stats (today’s patients, appointments, OPD visits, total doctors).
+     - Patient Management (full form + list + search + edit + delete).
+     - Appointments (booking, calendar view, status filter, today’s list).
+     - OPD / Visit Management (quick check-in, dental charting, prescriptions, queue).
+     - Doctor Management + schedule.
+     - Patient full history & dental records.
+     - Quick actions + reports.
+
+### New Patient Features (MUST IMPLEMENT)
+- Patients must **login with Google (Gmail)** to register and book appointments.
+- After Google login, patient gets a profile in the specific hospital (Supabase Auth + profiles table with hospital_id).
+- Patient can:
+  - View their own appointments and past visits at that hospital.
+  - Book new appointments (select doctor, date, dental procedure reason).
+  - Receive in-app notifications.
+- Patient data is isolated per hospital via RLS.
+
+### Super Admin Panel (only your email)
+- Approve/reject new hospital sign-ups.
+- View all hospitals with status, expiry date, location.
+- Send in-app + email notifications (“Subscription ending – pay via UPI”).
+- Freeze/unfreeze hospitals (blocks admin dashboard only).
+- Manually extend subscriptions or record payments.
+- Global analytics.
+
+### Dental-Specific Perfect Features
+- Interactive SVG dental tooth chart (mark conditions per tooth).
+- Treatment planning with estimated cost.
+- Digital prescriptions (PDF generate).
+- Basic billing/invoice per visit.
+- Dental history timeline.
+- Realtime queue & appointment updates (Supabase Realtime).
+
+### Tech Stack (Non-Negotiable)
+- Frontend: Next.js 15 (App Router), TypeScript, Tailwind CSS, Shadcn/ui + Radix, Lucide icons.
+- Auth & Database: Supabase (PostgreSQL + RLS for multi-tenancy + Auth with Google OAuth + Storage for logos, X-rays, documents).
+- Deployment: Vercel (frontend) + Supabase (backend).
+- Additional: Zod validation, React Hook Form, TanStack Query, Recharts for reports, next-themes for dark mode.
+
+### Security & Multi-Tenancy
+- Every table must have hospital_id.
+- Strict RLS policies (examples must be provided).
+- Public tables (hospitals list) only show approved hospitals with limited fields.
+- Super admin bypasses RLS via service role.
+
+### What You Must Output (Structured)
+Organize your complete response in clear markdown sections:
+1. Database Schema (all tables with hospital_id)
+2. Supabase Setup (RLS policies, Google OAuth config, env variables including SUPER_ADMIN_EMAIL)
+3. Folder Structure (Next.js App Router)
+4. Key Pages & Components (with code for: central search page, hospital public homepage, patient Google login flow, admin dashboard layout, patient form, dental chart, super admin panel)
+5. Customization System (how Settings update public pages)
+6. QR Code Feature (public read-only patient details)
+7. Full Implementation Steps (how to run locally, deploy, add first hospital)
+
+Make this the most professional, beautiful, bug-free, and sellable dental hospital management SaaS possible. Fix every single bug from your old test cases (no hidden buttons, proper scrolling, all close buttons work, full lists visible, etc.).
+
+Prioritize clean code, excellent UX, mobile responsiveness, and production readiness. Generate as much ready-to-use code as possible.
+
+Start building now.

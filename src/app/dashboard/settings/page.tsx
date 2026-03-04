@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,25 +10,63 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import {
-    Building2, Palette, MapPin, Globe, QrCode, Save, Upload,
+    Building2, Palette, MapPin, Globe, QrCode, Save, Upload, Loader2,
 } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
+import { useUpdateHospital } from '@/lib/supabase/hooks'
 
 export default function SettingsPage() {
-    const [hospitalName, setHospitalName] = useState('SmileCare Dental Hospital')
-    const [email, setEmail] = useState('info@smilecare.com')
-    const [phone, setPhone] = useState('+91 22 2345 6789')
-    const [address, setAddress] = useState('123 MG Road, Andheri West')
-    const [city, setCity] = useState('Mumbai')
-    const [state, setState] = useState('Maharashtra')
-    const [pincode, setPincode] = useState('400058')
+    const { hospital, hospitalId, refreshProfile } = useAuth()
+    const updateHospital = useUpdateHospital()
+
+    const [hospitalName, setHospitalName] = useState('')
+    const [email, setEmail] = useState('')
+    const [phone, setPhone] = useState('')
+    const [address, setAddress] = useState('')
+    const [city, setCity] = useState('')
+    const [state, setState] = useState('')
+    const [pincode, setPincode] = useState('')
     const [primaryColor, setPrimaryColor] = useState('#0ea5e9')
     const [secondaryColor, setSecondaryColor] = useState('#6366f1')
-    const [aboutText, setAboutText] = useState('SmileCare Dental Hospital has been providing world-class dental care since 2010. Our team of experienced dentists uses the latest technology to ensure the best treatment for our patients.')
-    const [mission, setMission] = useState('To provide affordable, high-quality dental care to every patient with compassion and excellence.')
+    const [aboutText, setAboutText] = useState('')
+    const [mission, setMission] = useState('')
     const [mapEmbed, setMapEmbed] = useState('')
 
-    const handleSave = () => {
-        toast.success('Settings saved successfully!')
+    // Pre-fill from hospital data
+    useEffect(() => {
+        if (hospital) {
+            setHospitalName(hospital.name || '')
+            setEmail(hospital.email || '')
+            setPhone(hospital.phone || '')
+            setAddress(hospital.address || '')
+            setCity(hospital.city || '')
+            setState(hospital.state || '')
+            setPincode(hospital.pincode || '')
+            setPrimaryColor(hospital.primary_color || '#0ea5e9')
+            setSecondaryColor(hospital.secondary_color || '#6366f1')
+            setAboutText(hospital.about_text || '')
+            setMission(hospital.mission || '')
+            setMapEmbed(hospital.map_embed_url || '')
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hospital])
+
+    const handleSave = (section?: string) => {
+        if (!hospitalId) return
+        const updates: Record<string, unknown> = {}
+        if (!section || section === 'general') {
+            Object.assign(updates, { name: hospitalName, email, phone, about_text: aboutText, mission })
+        }
+        if (!section || section === 'branding') {
+            Object.assign(updates, { primary_color: primaryColor, secondary_color: secondaryColor })
+        }
+        if (!section || section === 'location') {
+            Object.assign(updates, { address, city, state, pincode, map_embed_url: mapEmbed })
+        }
+        updateHospital.mutate({ id: hospitalId, ...updates } as any, {
+            onSuccess: () => { toast.success('Settings saved successfully!'); refreshProfile() },
+            onError: (e) => toast.error(e.message),
+        })
     }
 
     return (
@@ -76,8 +114,8 @@ export default function SettingsPage() {
                                 <Label>Mission Statement</Label>
                                 <Textarea value={mission} onChange={(e) => setMission(e.target.value)} rows={2} />
                             </div>
-                            <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                                <Save className="w-4 h-4 mr-1.5" /> Save Changes
+                            <Button onClick={() => handleSave('general')} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={updateHospital.isPending}>
+                                {updateHospital.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />} Save Changes
                             </Button>
                         </CardContent>
                     </Card>
@@ -147,8 +185,8 @@ export default function SettingsPage() {
                                 </div>
                             </div>
 
-                            <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                                <Save className="w-4 h-4 mr-1.5" /> Save Branding
+                            <Button onClick={() => handleSave('branding')} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={updateHospital.isPending}>
+                                {updateHospital.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />} Save Branding
                             </Button>
                         </CardContent>
                     </Card>
@@ -180,8 +218,8 @@ export default function SettingsPage() {
                                     <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" />
                                 </div>
                             )}
-                            <Button onClick={handleSave} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                                <Save className="w-4 h-4 mr-1.5" /> Save Location
+                            <Button onClick={() => handleSave('location')} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={updateHospital.isPending}>
+                                {updateHospital.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Save className="w-4 h-4 mr-1.5" />} Save Location
                             </Button>
                         </CardContent>
                     </Card>

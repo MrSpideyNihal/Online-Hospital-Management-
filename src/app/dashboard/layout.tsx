@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { cn } from '@/lib/utils'
+import { cn, getInitials } from '@/lib/utils'
+import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
@@ -32,6 +32,8 @@ import {
     ChevronLeft,
     Bell,
     Activity,
+    Loader2,
+    Hammer,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -42,6 +44,7 @@ const NAV_ITEMS = [
     { href: '/dashboard/visits', label: 'OPD / Visits', icon: ClipboardList },
     { href: '/dashboard/doctors', label: 'Doctors', icon: Stethoscope },
     { href: '/dashboard/dental-chart', label: 'Dental Chart', icon: Activity },
+    { href: '/dashboard/treatments', label: 'Treatments', icon: Hammer },
     { href: '/dashboard/prescriptions', label: 'Prescriptions', icon: FileText },
     { href: '/dashboard/billing', label: 'Billing', icon: Receipt },
     { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
@@ -58,13 +61,34 @@ export default function DashboardLayout({
     const { theme, setTheme } = useTheme()
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
+    const { user, profile, hospital, isLoading, signOut } = useAuth()
 
-    const supabase = createClient()
+    // Auth guard — redirect to login if not authenticated
+    useEffect(() => {
+        if (!isLoading && !user) {
+            router.push('/login')
+        }
+        // Redirect patients to patient portal
+        if (!isLoading && user && profile?.role === 'patient') {
+            router.push('/patient')
+        }
+    }, [isLoading, user, profile, router])
 
     const handleLogout = async () => {
-        await supabase.auth.signOut()
+        await signOut()
         router.push('/')
     }
+
+    // Show loading spinner while checking auth
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        )
+    }
+
+    if (!user) return null
 
     const NavContent = () => (
         <div className="flex flex-col h-full">
@@ -173,18 +197,15 @@ export default function DashboardLayout({
                     <div className="flex items-center gap-2">
                         <Button variant="ghost" size="icon" className="relative">
                             <Bell className="w-5 h-5" />
-                            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                                3
-                            </span>
                         </Button>
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="rounded-full">
                                     <Avatar className="w-8 h-8">
-                                        <AvatarImage src="" />
+                                        <AvatarImage src={profile?.avatar_url || ''} />
                                         <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                            AD
+                                            {getInitials(profile?.full_name || user?.email || 'U')}
                                         </AvatarFallback>
                                     </Avatar>
                                 </Button>

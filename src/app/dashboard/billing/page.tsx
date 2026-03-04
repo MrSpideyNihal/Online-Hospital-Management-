@@ -1,18 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Plus, Download, Eye } from 'lucide-react'
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
+} from '@/components/ui/dialog'
+import { Plus, Loader2, Trash2 } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
-
-const DEMO_INVOICES = [
-    { id: '1', invoice_number: 'INV-202603-0001', patient: 'Rahul Sharma', date: '2026-03-04', items: [{ desc: 'Root Canal Treatment', amount: 4500 }, { desc: 'X-Ray', amount: 500 }, { desc: 'Medication', amount: 500 }], total: 5500, status: 'paid' },
-    { id: '2', invoice_number: 'INV-202603-0002', patient: 'Anita Desai', date: '2026-03-03', items: [{ desc: 'Teeth Cleaning', amount: 1200 }], total: 1200, status: 'pending' },
-    { id: '3', invoice_number: 'INV-202603-0003', patient: 'Vikram Singh', date: '2026-03-02', items: [{ desc: 'Dental Implant', amount: 22000 }, { desc: 'Consultation', amount: 800 }, { desc: 'X-Ray & CT Scan', amount: 2200 }], total: 25000, status: 'partial' },
-    { id: '4', invoice_number: 'INV-202602-0015', patient: 'Meera Joshi', date: '2026-02-28', items: [{ desc: 'Braces Adjustment', amount: 3500 }], total: 3500, status: 'paid' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { useInvoices, useCreateInvoice, usePatients } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
+import type { InvoiceItem } from '@/types/database'
 
 const paymentStatusColors: Record<string, string> = {
     paid: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -21,8 +25,63 @@ const paymentStatusColors: Record<string, string> = {
 }
 
 export default function BillingPage() {
-    const totalRevenue = DEMO_INVOICES.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.total, 0)
-    const pendingAmount = DEMO_INVOICES.filter(i => i.status !== 'paid').reduce((sum, i) => sum + i.total, 0)
+    const { hospitalId } = useAuth()
+    const { data: invoices = [], isLoading } = useInvoices(hospitalId)
+    const { data: patients = [] } = usePatients(hospitalId)
+    const createInvoice = useCreateInvoice()
+
+    const [isAddOpen, setIsAddOpen] = useState(false)
+    const [fPatient, setFPatient] = useState('')
+    const [fDiscount, setFDiscount] = useState('0')
+    const [fTax, setFTax] = useState('0')
+    const [items, setItems] = useState<InvoiceItem[]>([{ description: '', quantity: 1, unit_price: 0, total: 0 }])
+
+    const updateItem = (i: number, field: keyof InvoiceItem, value: string | number) => {
+        setItems(prev => prev.map((item, idx) => {
+            if (idx !== i) return item
+            const updated = { ...item, [field]: value }
+            if (field === 'quantity' || field === 'unit_price') {
+                updated.total = Number(updated.quantity) * Number(updated.unit_price)
+            }
+            return updated
+        }))
+    }
+
+    const subtotal = items.reduce((s, i) => s + (i.total || 0), 0)
+    const tax = Number(fTax) || 0
+    const discount = Number(fDiscount) || 0
+    const grandTotal = subtotal + tax - discount
+
+    const resetForm = () => {
+        setFPatient(''); setFDiscount('0'); setFTax('0')
+        setItems([{ description: '', quantity: 1, unit_price: 0, total: 0 }])
+    }
+
+    const handleCreate = () => {
+        if (!hospitalId || !fPatient) { toast.error('Patient is required'); return }
+        const validItems = items.filter(i => i.description.trim())
+        if (validItems.length === 0) { toast.error('Add at least one item'); return }
+        createInvoice.mutate({
+            hospital_id: hospitalId,
+            patient_id: fPatient,
+            items: validItems,
+            subtotal,
+            tax,
+            discount,
+            total: grandTotal,
+            payment_status: 'pending',
+        }, {
+            onSuccess: () => { toast.success('Invoice created'); setIsAddOpen(false); resetForm() },
+            onError: (e) => toast.error(e.message),
+        })
+    }
+
+    const totalRevenue = invoices.filter((i: any) => i.payment_status === 'paid').reduce((sum: number, i: any) => sum + (i.total || 0), 0)
+    const pendingAmount = invoices.filter((i: any) => i.payment_status !== 'paid').reduce((sum: number, i: any) => sum + (i.total || 0), 0)
+
+    if (isLoading) {
+        return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
 
     return (
         <div className="space-y-6">
@@ -31,34 +90,61 @@ export default function BillingPage() {
                     <h1 className="text-2xl font-bold">Billing & Invoices</h1>
                     <p className="text-muted-foreground">Track payments and generate invoices</p>
                 </div>
-                <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                    <Plus className="w-4 h-4 mr-1.5" /> Create Invoice
-                </Button>
+                <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+                    <DialogTrigger asChild>
+                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                            <Plus className="w-4 h-4 mr-1.5" /> Create Invoice
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+                        <DialogHeader><DialogTitle>Create Invoice</DialogTitle></DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-1.5">
+                                <Label>Patient *</Label>
+                                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fPatient} onChange={e => setFPatient(e.target.value)}>
+                                    <option value="">Select patient</option>
+                                    {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                                </select>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <Label className="text-sm font-medium">Line Items</Label>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setItems(prev => [...prev, { description: '', quantity: 1, unit_price: 0, total: 0 }])}>
+                                        <Plus className="w-3 h-3 mr-1" /> Add
+                                    </Button>
+                                </div>
+                                {items.map((item, i) => (
+                                    <div key={i} className="grid grid-cols-[1fr_0.5fr_0.6fr_0.6fr_auto] gap-2 items-end">
+                                        <div className="space-y-1"><Label className="text-xs">Description</Label><Input placeholder="Root Canal" value={item.description} onChange={e => updateItem(i, 'description', e.target.value)} /></div>
+                                        <div className="space-y-1"><Label className="text-xs">Qty</Label><Input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)} /></div>
+                                        <div className="space-y-1"><Label className="text-xs">Unit Price</Label><Input type="number" min={0} value={item.unit_price} onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)} /></div>
+                                        <div className="space-y-1"><Label className="text-xs">Total</Label><Input readOnly value={`₹${item.total}`} className="bg-muted" /></div>
+                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setItems(prev => prev.filter((_, idx) => idx !== i))} disabled={items.length <= 1}><Trash2 className="w-4 h-4" /></Button>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-3 gap-4">
+                                <div className="space-y-1"><Label className="text-xs">Tax (₹)</Label><Input type="number" value={fTax} onChange={e => setFTax(e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-xs">Discount (₹)</Label><Input type="number" value={fDiscount} onChange={e => setFDiscount(e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-xs">Grand Total</Label><Input readOnly value={`₹${grandTotal}`} className="bg-muted font-bold" /></div>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreate} disabled={createInvoice.isPending}>
+                                {createInvoice.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Saving...</> : 'Create Invoice'}
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
 
-            {/* Revenue Cards */}
             <div className="grid sm:grid-cols-3 gap-4">
-                <Card className="border-border/50">
-                    <CardContent className="p-5">
-                        <p className="text-sm text-muted-foreground">Total Revenue (Month)</p>
-                        <p className="text-3xl font-bold mt-1 text-green-600">{formatCurrency(totalRevenue)}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-border/50">
-                    <CardContent className="p-5">
-                        <p className="text-sm text-muted-foreground">Pending Payments</p>
-                        <p className="text-3xl font-bold mt-1 text-amber-600">{formatCurrency(pendingAmount)}</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-border/50">
-                    <CardContent className="p-5">
-                        <p className="text-sm text-muted-foreground">Total Invoices</p>
-                        <p className="text-3xl font-bold mt-1">{DEMO_INVOICES.length}</p>
-                    </CardContent>
-                </Card>
+                <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total Revenue (Month)</p><p className="text-3xl font-bold mt-1 text-green-600">{formatCurrency(totalRevenue)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Pending Payments</p><p className="text-3xl font-bold mt-1 text-amber-600">{formatCurrency(pendingAmount)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total Invoices</p><p className="text-3xl font-bold mt-1">{invoices.length}</p></CardContent></Card>
             </div>
 
-            {/* Invoice Table */}
             <Card className="border-border/50">
                 <CardHeader><CardTitle className="text-base">Recent Invoices</CardTitle></CardHeader>
                 <CardContent className="p-0">
@@ -71,24 +157,19 @@ export default function BillingPage() {
                                     <TableHead>Date</TableHead>
                                     <TableHead>Amount</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {DEMO_INVOICES.map((inv) => (
+                                {invoices.length === 0 ? (
+                                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No invoices found.</TableCell></TableRow>
+                                ) : invoices.map((inv: any) => (
                                     <TableRow key={inv.id}>
                                         <TableCell className="font-mono text-xs">{inv.invoice_number}</TableCell>
-                                        <TableCell className="font-medium">{inv.patient}</TableCell>
-                                        <TableCell className="text-muted-foreground">{formatDate(inv.date)}</TableCell>
+                                        <TableCell className="font-medium">{inv.patients?.full_name || '—'}</TableCell>
+                                        <TableCell className="text-muted-foreground">{formatDate(inv.created_at)}</TableCell>
                                         <TableCell className="font-semibold">{formatCurrency(inv.total)}</TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className={`text-xs capitalize ${paymentStatusColors[inv.status]}`}>{inv.status}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="flex gap-1">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8"><Eye className="w-4 h-4" /></Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8"><Download className="w-4 h-4" /></Button>
-                                            </div>
+                                            <Badge variant="secondary" className={`text-xs capitalize ${paymentStatusColors[inv.payment_status] || ''}`}>{inv.payment_status}</Badge>
                                         </TableCell>
                                     </TableRow>
                                 ))}

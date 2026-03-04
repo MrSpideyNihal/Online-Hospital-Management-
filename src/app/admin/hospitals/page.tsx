@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -12,23 +12,12 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-    Search, MoreHorizontal, CheckCircle, XCircle, Snowflake, Eye, MapPin,
+    Search, MoreHorizontal, CheckCircle, XCircle, Snowflake, Eye, MapPin, Loader2,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-
-interface HospitalEntry {
-    id: string; name: string; city: string; email: string; status: string;
-    plan: string; subscription_end: string; created_at: string; total_patients: number;
-}
-
-const DEMO: HospitalEntry[] = [
-    { id: '1', name: 'SmileCare Dental Hospital', city: 'Mumbai', email: 'info@smilecare.com', status: 'approved', plan: 'premium', subscription_end: '2026-06-15', created_at: '2025-01-10', total_patients: 450 },
-    { id: '2', name: 'DentPro Clinic', city: 'Delhi', email: 'admin@dentpro.com', status: 'approved', plan: 'basic', subscription_end: '2026-04-20', created_at: '2025-03-15', total_patients: 230 },
-    { id: '3', name: 'PearlSmile Dental', city: 'Bangalore', email: 'hello@pearlsmile.com', status: 'approved', plan: 'premium', subscription_end: '2026-05-10', created_at: '2025-02-01', total_patients: 380 },
-    { id: '4', name: 'BrightSmile Dental Clinic', city: 'Hyderabad', email: 'bright@dental.com', status: 'pending', plan: 'trial', subscription_end: '', created_at: '2026-03-04', total_patients: 0 },
-    { id: '5', name: 'Dr. Mehta\'s Dental Care', city: 'Pune', email: 'mehta@dental.com', status: 'pending', plan: 'trial', subscription_end: '', created_at: '2026-03-03', total_patients: 0 },
-    { id: '6', name: 'City Dental Hub', city: 'Chennai', email: 'city@dental.com', status: 'frozen', plan: 'basic', subscription_end: '2026-01-15', created_at: '2025-05-20', total_patients: 120 },
-]
+import { useAllHospitals, useApproveHospital, useRejectHospital, useFreezeHospital } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
+import Link from 'next/link'
 
 const statusColors: Record<string, string> = {
     approved: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400',
@@ -48,11 +37,28 @@ export default function AdminHospitalsPage() {
     const [search, setSearch] = useState('')
     const [filterStatus, setFilterStatus] = useState('all')
 
-    const filtered = DEMO.filter(h => {
-        const matchSearch = h.name.toLowerCase().includes(search.toLowerCase()) || h.city.toLowerCase().includes(search.toLowerCase())
-        const matchStatus = filterStatus === 'all' || h.status === filterStatus
+    const { data: hospitals, isLoading } = useAllHospitals()
+    const approve = useApproveHospital()
+    const rejectMut = useRejectHospital()
+    const freeze = useFreezeHospital()
+
+    const all = hospitals || []
+    const displayStatus = (h: typeof all[0]) => h.is_frozen ? 'frozen' : h.status
+
+    const filtered = all.filter(h => {
+        const matchSearch = h.name.toLowerCase().includes(search.toLowerCase()) || (h.city || '').toLowerCase().includes(search.toLowerCase())
+        const st = displayStatus(h)
+        const matchStatus = filterStatus === 'all' || st === filterStatus
         return matchSearch && matchStatus
     })
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        )
+    }
 
     return (
         <div className="space-y-6">
@@ -64,10 +70,10 @@ export default function AdminHospitalsPage() {
             {/* Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { label: 'Total', value: DEMO.length, color: 'text-foreground' },
-                    { label: 'Approved', value: DEMO.filter(h => h.status === 'approved').length, color: 'text-green-600' },
-                    { label: 'Pending', value: DEMO.filter(h => h.status === 'pending').length, color: 'text-amber-600' },
-                    { label: 'Frozen', value: DEMO.filter(h => h.status === 'frozen').length, color: 'text-blue-600' },
+                    { label: 'Total', value: all.length, color: 'text-foreground' },
+                    { label: 'Approved', value: all.filter(h => h.status === 'approved' && !h.is_frozen).length, color: 'text-green-600' },
+                    { label: 'Pending', value: all.filter(h => h.status === 'pending').length, color: 'text-amber-600' },
+                    { label: 'Frozen', value: all.filter(h => h.is_frozen).length, color: 'text-blue-600' },
                 ].map(s => (
                     <Card key={s.label} className="border-border/50">
                         <CardContent className="p-4 text-center">
@@ -108,13 +114,19 @@ export default function AdminHospitalsPage() {
                                     <TableHead>Location</TableHead>
                                     <TableHead>Plan</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead>Patients</TableHead>
                                     <TableHead>Subscription Ends</TableHead>
                                     <TableHead></TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered.map((h) => (
+                                {filtered.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">No hospitals found</TableCell>
+                                    </TableRow>
+                                )}
+                                {filtered.map((h) => {
+                                    const st = displayStatus(h)
+                                    return (
                                     <TableRow key={h.id}>
                                         <TableCell>
                                             <div>
@@ -123,15 +135,14 @@ export default function AdminHospitalsPage() {
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-1 text-sm"><MapPin className="w-3 h-3" />{h.city}</div>
+                                            <div className="flex items-center gap-1 text-sm"><MapPin className="w-3 h-3" />{h.city || '—'}</div>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className={`text-xs capitalize ${planColors[h.plan]}`}>{h.plan}</Badge>
+                                            <Badge variant="secondary" className={`text-xs capitalize ${planColors[h.subscription_plan] || ''}`}>{h.subscription_plan}</Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className={`text-xs capitalize ${statusColors[h.status]}`}>{h.status}</Badge>
+                                            <Badge variant="secondary" className={`text-xs capitalize ${statusColors[st] || ''}`}>{st}</Badge>
                                         </TableCell>
-                                        <TableCell className="text-sm">{h.total_patients.toLocaleString()}</TableCell>
                                         <TableCell className="text-sm text-muted-foreground">
                                             {h.subscription_end ? formatDate(h.subscription_end) : '—'}
                                         </TableCell>
@@ -141,24 +152,39 @@ export default function AdminHospitalsPage() {
                                                     <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem><Eye className="w-4 h-4 mr-2" /> View Details</DropdownMenuItem>
+                                                    <Link href={`/hospitals/${h.slug}`}>
+                                                        <DropdownMenuItem><Eye className="w-4 h-4 mr-2" /> View Public Page</DropdownMenuItem>
+                                                    </Link>
                                                     {h.status === 'pending' && (
                                                         <>
-                                                            <DropdownMenuItem className="text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Approve</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive"><XCircle className="w-4 h-4 mr-2" /> Reject</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-green-600" onClick={() => approve.mutate(h.id, {
+                                                                onSuccess: () => toast.success(`${h.name} approved`),
+                                                                onError: (e) => toast.error(e.message),
+                                                            })}><CheckCircle className="w-4 h-4 mr-2" /> Approve</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive" onClick={() => rejectMut.mutate(h.id, {
+                                                                onSuccess: () => toast.success(`${h.name} rejected`),
+                                                                onError: (e) => toast.error(e.message),
+                                                            })}><XCircle className="w-4 h-4 mr-2" /> Reject</DropdownMenuItem>
                                                         </>
                                                     )}
-                                                    {h.status === 'approved' && (
-                                                        <DropdownMenuItem className="text-blue-600"><Snowflake className="w-4 h-4 mr-2" /> Freeze</DropdownMenuItem>
+                                                    {h.status === 'approved' && !h.is_frozen && (
+                                                        <DropdownMenuItem className="text-blue-600" onClick={() => freeze.mutate({ hospitalId: h.id, freeze: true }, {
+                                                            onSuccess: () => toast.success(`${h.name} frozen`),
+                                                            onError: (e) => toast.error(e.message),
+                                                        })}><Snowflake className="w-4 h-4 mr-2" /> Freeze</DropdownMenuItem>
                                                     )}
-                                                    {h.status === 'frozen' && (
-                                                        <DropdownMenuItem className="text-green-600"><CheckCircle className="w-4 h-4 mr-2" /> Unfreeze</DropdownMenuItem>
+                                                    {h.is_frozen && (
+                                                        <DropdownMenuItem className="text-green-600" onClick={() => freeze.mutate({ hospitalId: h.id, freeze: false }, {
+                                                            onSuccess: () => toast.success(`${h.name} unfrozen`),
+                                                            onError: (e) => toast.error(e.message),
+                                                        })}><CheckCircle className="w-4 h-4 mr-2" /> Unfreeze</DropdownMenuItem>
                                                     )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                    )
+                                })}
                             </TableBody>
                         </Table>
                     </div>

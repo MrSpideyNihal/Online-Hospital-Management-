@@ -1,19 +1,53 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Building2, Users, TrendingUp, IndianRupee } from 'lucide-react'
+import { Building2, Users, TrendingUp, Loader2 } from 'lucide-react'
+import { useAllHospitals } from '@/lib/supabase/hooks'
 
 export default function AdminAnalyticsPage() {
+    const { data: hospitals, isLoading } = useAllHospitals()
+
+    const all = hospitals || []
+    const approved = all.filter(h => h.status === 'approved')
+    const pending = all.filter(h => h.status === 'pending')
+
+    // Group by city
+    const cityMap = new Map<string, number>()
+    all.forEach(h => {
+        const city = h.city || 'Unknown'
+        cityMap.set(city, (cityMap.get(city) || 0) + 1)
+    })
+    const cityData = Array.from(cityMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8)
+    const maxCityCount = cityData[0]?.[1] || 1
+
+    // Group by plan
+    const planMap = new Map<string, number>()
+    all.forEach(h => {
+        const plan = h.subscription_plan || 'trial'
+        planMap.set(plan, (planMap.get(plan) || 0) + 1)
+    })
+    const planData = Array.from(planMap.entries()).sort((a, b) => b[1] - a[1])
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             <div><h1 className="text-2xl font-bold">Global Analytics</h1><p className="text-muted-foreground">Platform-wide performance metrics</p></div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                    { title: 'Total Hospitals', value: '23', icon: Building2, color: 'text-blue-600' },
-                    { title: 'Total Patients', value: '12,450', icon: Users, color: 'text-green-600' },
-                    { title: 'Total Revenue', value: '₹28,50,000', icon: IndianRupee, color: 'text-purple-600' },
-                    { title: 'Growth Rate', value: '24%', icon: TrendingUp, color: 'text-amber-600' },
+                    { title: 'Total Hospitals', value: all.length, icon: Building2, color: 'text-blue-600' },
+                    { title: 'Approved', value: approved.length, icon: Users, color: 'text-green-600' },
+                    { title: 'Pending', value: pending.length, icon: TrendingUp, color: 'text-amber-600' },
+                    { title: 'Premium Plans', value: all.filter(h => h.subscription_plan === 'premium').length, icon: TrendingUp, color: 'text-purple-600' },
                 ].map(s => (
                     <Card key={s.title} className="border-border/50">
                         <CardContent className="p-5">
@@ -31,14 +65,15 @@ export default function AdminAnalyticsPage() {
                     <CardHeader><CardTitle className="text-base">Hospitals by City</CardTitle></CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {[{ city: 'Mumbai', count: 6 }, { city: 'Delhi', count: 5 }, { city: 'Bangalore', count: 4 }, { city: 'Chennai', count: 3 }, { city: 'Hyderabad', count: 3 }, { city: 'Pune', count: 2 }].map(c => (
-                                <div key={c.city} className="flex items-center justify-between">
-                                    <span className="text-sm">{c.city}</span>
+                            {cityData.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No data yet</p>}
+                            {cityData.map(([city, count]) => (
+                                <div key={city} className="flex items-center justify-between">
+                                    <span className="text-sm">{city}</span>
                                     <div className="flex items-center gap-2">
                                         <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full bg-primary rounded-full" style={{ width: `${(c.count / 6) * 100}%` }} />
+                                            <div className="h-full bg-primary rounded-full" style={{ width: `${(count / maxCityCount) * 100}%` }} />
                                         </div>
-                                        <span className="text-sm font-medium w-6 text-right">{c.count}</span>
+                                        <span className="text-sm font-medium w-6 text-right">{count}</span>
                                     </div>
                                 </div>
                             ))}
@@ -46,13 +81,13 @@ export default function AdminAnalyticsPage() {
                     </CardContent>
                 </Card>
                 <Card className="border-border/50">
-                    <CardHeader><CardTitle className="text-base">Revenue by Plan</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">Hospitals by Plan</CardTitle></CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {[{ plan: 'Premium', revenue: '₹14,99,700', hospitals: 12 }, { plan: 'Basic', revenue: '₹7,99,600', hospitals: 8 }, { plan: 'Trial', revenue: '₹0', hospitals: 3 }].map(p => (
-                                <div key={p.plan} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                                    <div><p className="font-medium text-sm">{p.plan}</p><p className="text-xs text-muted-foreground">{p.hospitals} hospitals</p></div>
-                                    <span className="font-semibold text-green-600">{p.revenue}</span>
+                            {planData.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">No data yet</p>}
+                            {planData.map(([plan, count]) => (
+                                <div key={plan} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                                    <div><p className="font-medium text-sm capitalize">{plan}</p><p className="text-xs text-muted-foreground">{count} hospitals</p></div>
                                 </div>
                             ))}
                         </div>

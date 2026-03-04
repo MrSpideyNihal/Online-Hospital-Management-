@@ -1,12 +1,16 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { TOOTH_CONDITIONS } from '@/lib/utils'
+import { Loader2 } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
+import { usePatients, useDentalChartRecords, useSaveDentalChartRecord } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
 
 // Tooth data for adult dentition (Universal Numbering System 1-32)
 const UPPER_TEETH = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
@@ -30,10 +34,32 @@ interface ToothCondition {
 }
 
 export default function DentalChartPage() {
+    const { hospitalId, user } = useAuth()
+    const { data: patients = [], isLoading: pLoading } = usePatients(hospitalId)
+    const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null)
+    const { data: records = [], isLoading: rLoading } = useDentalChartRecords(selectedPatientId)
+    const saveDentalChart = useSaveDentalChartRecord()
+
     const [selectedTooth, setSelectedTooth] = useState<number | null>(null)
     const [selectedCondition, setSelectedCondition] = useState('healthy')
     const [toothConditions, setToothConditions] = useState<ToothCondition[]>([])
     const [notes, setNotes] = useState('')
+
+    // Populate local state from DB records when patient changes
+    useEffect(() => {
+        if (records.length > 0) {
+            // Group by tooth, take latest per tooth
+            const map = new Map<number, ToothCondition>()
+            for (const r of records) {
+                if (!map.has(r.tooth_number)) {
+                    map.set(r.tooth_number, { tooth_number: r.tooth_number, condition: r.condition, notes: r.notes || '' })
+                }
+            }
+            setToothConditions(Array.from(map.values()))
+        } else {
+            setToothConditions([])
+        }
+    }, [records])
 
     const getToothColor = useCallback((toothNum: number) => {
         const cond = toothConditions.find(c => c.tooth_number === toothNum)
@@ -55,10 +81,27 @@ export default function DentalChartPage() {
 
     const handleSaveCondition = () => {
         if (selectedTooth === null) return
+        // Update local state immediately
         setToothConditions(prev => {
             const filtered = prev.filter(c => c.tooth_number !== selectedTooth)
             return [...filtered, { tooth_number: selectedTooth, condition: selectedCondition, notes }]
         })
+        // Persist to DB if patient selected
+        if (selectedPatientId && hospitalId) {
+            saveDentalChart.mutate({
+                patient_id: selectedPatientId,
+                hospital_id: hospitalId,
+                tooth_number: selectedTooth,
+                condition: selectedCondition,
+                notes: notes || null,
+                visit_id: null,
+                surface: null,
+                recorded_by: user?.id ?? null,
+            }, {
+                onSuccess: () => toast.success(`Tooth #${selectedTooth} saved`),
+                onError: (e) => toast.error(e.message),
+            })
+        }
         setSelectedTooth(null)
         setNotes('')
     }
@@ -116,6 +159,26 @@ export default function DentalChartPage() {
                 <h1 className="text-2xl font-bold">Dental Chart</h1>
                 <p className="text-muted-foreground">Interactive tooth chart — click any tooth to record conditions</p>
             </div>
+
+            {/* Patient Selector */}
+            <Card className="border-border/50">
+                <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                        <Label className="whitespace-nowrap font-medium">Patient</Label>
+                        {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+                        <select
+                            className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
+                            value={selectedPatientId || ''}
+                            onChange={(e) => { setSelectedPatientId(e.target.value || null); setSelectedTooth(null); setToothConditions([]) }}
+                        >
+                            <option value="">Select a patient to load/save chart...</option>
+                            {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
+                        </select>
+                        )}
+                        {rLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                    </div>
+                </CardContent>
+            </Card>
 
             <div className="grid lg:grid-cols-3 gap-6">
                 {/* Chart */}

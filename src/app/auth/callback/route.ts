@@ -52,6 +52,20 @@ export async function GET(request: Request) {
                         avatar_url: user.user_metadata?.avatar_url,
                         role: 'patient',
                     })
+                    // New patient → redirect to patient portal
+                    return NextResponse.redirect(`${origin}/patient`)
+                }
+
+                // Existing user — redirect based on role
+                if (profile && redirect === '/dashboard') {
+                    const { data: fullProfile } = await supabase
+                        .from('profiles')
+                        .select('role')
+                        .eq('id', user.id)
+                        .single()
+                    if (fullProfile?.role === 'patient') {
+                        return NextResponse.redirect(`${origin}/patient`)
+                    }
                 }
             }
 

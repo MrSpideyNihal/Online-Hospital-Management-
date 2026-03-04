@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import type {
     Patient, Doctor, Appointment, Visit, DentalChart,
     Prescription, Invoice, Hospital, HospitalService, Testimonial,
+    Notification, Treatment,
 } from '@/types/database'
 
 const supabase = createClient()
@@ -520,18 +521,21 @@ export function useSearchHospitals(searchQuery: string, city?: string) {
 }
 
 // ============================================================
-// SUPER ADMIN
+// SUPER ADMIN (via API routes to bypass RLS)
 // ============================================================
 
 export function useAllHospitals(status?: string) {
     return useQuery({
         queryKey: ['all-hospitals', status],
         queryFn: async () => {
-            let q = supabase.from('hospitals').select('*').order('created_at', { ascending: false })
-            if (status && status !== 'all') q = q.eq('status', status)
-            const { data, error } = await q
-            if (error) throw error
-            return data as Hospital[]
+            const params = new URLSearchParams()
+            if (status && status !== 'all') params.set('status', status)
+            const res = await fetch(`/api/admin/hospitals?${params.toString()}`)
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to fetch hospitals')
+            }
+            return (await res.json()) as Hospital[]
         },
     })
 }
@@ -540,14 +544,16 @@ export function useApproveHospital() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (hospitalId: string) => {
-            const { data, error } = await supabase
-                .from('hospitals')
-                .update({ status: 'approved' })
-                .eq('id', hospitalId)
-                .select()
-                .single()
-            if (error) throw error
-            return data
+            const res = await fetch('/api/admin/hospitals', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hospitalId, action: 'approve' }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to approve')
+            }
+            return res.json()
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
@@ -559,14 +565,16 @@ export function useRejectHospital() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (hospitalId: string) => {
-            const { data, error } = await supabase
-                .from('hospitals')
-                .update({ status: 'rejected' })
-                .eq('id', hospitalId)
-                .select()
-                .single()
-            if (error) throw error
-            return data
+            const res = await fetch('/api/admin/hospitals', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hospitalId, action: 'reject' }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to reject')
+            }
+            return res.json()
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
@@ -578,17 +586,112 @@ export function useFreezeHospital() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ hospitalId, freeze }: { hospitalId: string; freeze: boolean }) => {
-            const { data, error } = await supabase
-                .from('hospitals')
-                .update({ status: freeze ? 'frozen' : 'approved' })
-                .eq('id', hospitalId)
-                .select()
-                .single()
-            if (error) throw error
-            return data
+            const res = await fetch('/api/admin/hospitals', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hospitalId, action: freeze ? 'freeze' : 'unfreeze' }),
+            })
+            if (!res.ok) {
+                const err = await res.json()
+                throw new Error(err.error || 'Failed to update')
+            }
+            return res.json()
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
+        },
+    })
+}
+
+// ============================================================
+// NOTIFICATIONS
+// ============================================================
+
+export function useNotifications(userId: string | null) {
+    return useQuery({
+        queryKey: ['notifications', userId],
+        queryFn: async () => {
+            if (!userId) return []
+            const { data, error } = await supabase
+                .from('notifications')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+                .limit(50)
+            if (error) throw error
+            return data as Notification[]
+        },
+        enabled: !!userId,
+    })
+}
+
+export function useMarkNotificationRead() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (id: string) => {
+            const { error } = await supabase
+                .from('notifications')
+                .update({ is_read: true })
+                .eq('id', id)
+            if (error) throw error
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['notifications'] })
+        },
+    })
+}
+
+// ============================================================
+// HOSPITAL SERVICES (mutations)
+// ============================================================
+
+export function useCreateHospitalService() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (service: Partial<HospitalService> & { hospital_id: string; service_name: string }) => {
+            const { data, error } = await supabase
+                .from('hospital_services')
+                .insert(service)
+                .select()
+                .single()
+            if (error) throw error
+            return data as HospitalService
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['hospital-services', data.hospital_id] })
+        },
+    })
+}
+
+export function useUpdateHospitalService() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ id, ...updates }: Partial<HospitalService> & { id: string }) => {
+            const { data, error } = await supabase
+                .from('hospital_services')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single()
+            if (error) throw error
+            return data as HospitalService
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['hospital-services', data.hospital_id] })
+        },
+    })
+}
+
+export function useDeleteHospitalService() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ id, hospitalId }: { id: string; hospitalId: string }) => {
+            const { error } = await supabase.from('hospital_services').delete().eq('id', id)
+            if (error) throw error
+            return { id, hospitalId }
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['hospital-services', data.hospitalId] })
         },
     })
 }
@@ -630,5 +733,63 @@ export function useDashboardStats(hospitalId: string | null) {
         },
         enabled: !!hospitalId,
         refetchInterval: 30000,
+    })
+}
+
+// ============================================================
+// TREATMENTS
+// ============================================================
+
+export function useTreatments(hospitalId: string | null) {
+    return useQuery({
+        queryKey: ['treatments', hospitalId],
+        queryFn: async () => {
+            if (!hospitalId) return []
+            const { data, error } = await supabase
+                .from('treatments')
+                .select('*, patients:patient_id(full_name)')
+                .eq('hospital_id', hospitalId)
+                .order('created_at', { ascending: false })
+            if (error) throw error
+            return data as (Treatment & { patients?: { full_name: string } })[]
+        },
+        enabled: !!hospitalId,
+    })
+}
+
+export function useCreateTreatment() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (treatment: Partial<Treatment> & { hospital_id: string; patient_id: string; treatment_type: string }) => {
+            const { data, error } = await supabase
+                .from('treatments')
+                .insert(treatment)
+                .select()
+                .single()
+            if (error) throw error
+            return data as Treatment
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['treatments', data.hospital_id] })
+        },
+    })
+}
+
+export function useUpdateTreatment() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async ({ id, ...updates }: Partial<Treatment> & { id: string }) => {
+            const { data, error } = await supabase
+                .from('treatments')
+                .update(updates)
+                .eq('id', id)
+                .select()
+                .single()
+            if (error) throw error
+            return data as Treatment
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['treatments', data.hospital_id] })
+        },
     })
 }

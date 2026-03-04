@@ -6,26 +6,12 @@ import { Badge } from '@/components/ui/badge'
 import {
     Users, Calendar, ClipboardList, Stethoscope,
     TrendingUp, IndianRupee, Clock, UserPlus,
-    ArrowRight, ArrowUpRight,
+    ArrowRight, Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
-
-const STATS = [
-    { title: "Today's Patients", value: '24', change: '+12%', icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
-    { title: 'Appointments', value: '18', change: '+8%', icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
-    { title: 'OPD Visits', value: '32', change: '+15%', icon: ClipboardList, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
-    { title: 'Total Doctors', value: '8', change: '0%', icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
-    { title: 'Revenue (Today)', value: '₹45,200', change: '+22%', icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
-    { title: 'Pending Payments', value: '₹12,800', change: '-5%', icon: TrendingUp, color: 'text-rose-600', bg: 'bg-rose-100 dark:bg-rose-900/30' },
-]
-
-const RECENT_APPOINTMENTS = [
-    { id: 1, patient: 'Rahul Sharma', doctor: 'Dr. Priya Patel', time: '10:00 AM', status: 'confirmed', reason: 'Root Canal' },
-    { id: 2, patient: 'Anita Desai', doctor: 'Dr. Amit Kumar', time: '10:30 AM', status: 'waiting', reason: 'Teeth Cleaning' },
-    { id: 3, patient: 'Vikram Singh', doctor: 'Dr. Priya Patel', time: '11:00 AM', status: 'in_progress', reason: 'Dental Implant Consultation' },
-    { id: 4, patient: 'Meera Joshi', doctor: 'Dr. Sunita Rao', time: '11:30 AM', status: 'scheduled', reason: 'Braces Adjustment' },
-    { id: 5, patient: 'Arjun Nair', doctor: 'Dr. Amit Kumar', time: '12:00 PM', status: 'scheduled', reason: 'Cavity Filling' },
-]
+import { useAuth } from '@/lib/auth-context'
+import { useDashboardStats, useAppointments, useVisits } from '@/lib/supabase/hooks'
+import { formatCurrency } from '@/lib/utils'
 
 const QUICK_ACTIONS = [
     { label: 'New Patient', icon: UserPlus, href: '/dashboard/patients?action=new', color: 'from-blue-600 to-cyan-600' },
@@ -40,9 +26,30 @@ const statusColors: Record<string, string> = {
     in_progress: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
     scheduled: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
     completed: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+    cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export default function DashboardPage() {
+    const { hospitalId } = useAuth()
+    const today = new Date().toISOString().split('T')[0]
+
+    const { data: stats, isLoading: statsLoading } = useDashboardStats(hospitalId)
+    const { data: appointments, isLoading: apptsLoading } = useAppointments(hospitalId, { date: today })
+    const { data: visits, isLoading: visitsLoading } = useVisits(hospitalId, today)
+
+    const statCards = [
+        { title: "Today's Patients", value: stats?.todayVisits ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+        { title: 'Appointments', value: stats?.todayAppointments ?? 0, icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
+        { title: 'OPD Visits', value: stats?.todayVisits ?? 0, icon: ClipboardList, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
+        { title: 'Total Doctors', value: stats?.totalDoctors ?? 0, icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+        { title: 'Revenue (Today)', value: formatCurrency(stats?.todayRevenue ?? 0), icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+        { title: 'Pending Payments', value: formatCurrency(stats?.pendingPayments ?? 0), icon: TrendingUp, color: 'text-rose-600', bg: 'bg-rose-100 dark:bg-rose-900/30' },
+    ]
+
+    const recentAppointments = (appointments || []).slice(0, 5)
+    const opdQueue = (visits || []).filter((v: any) => v.status === 'waiting' || v.status === 'in_progress').slice(0, 5)
+
     return (
         <div className="space-y-6">
             {/* Welcome */}
@@ -75,103 +82,96 @@ export default function DashboardPage() {
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                {STATS.map((stat) => (
+                {statCards.map((stat) => (
                     <Card key={stat.title} className="border-border/50 hover:shadow-md transition-shadow">
                         <CardContent className="p-5">
-                            <div className="flex items-start justify-between">
-                                <div>
-                                    <p className="text-sm text-muted-foreground">{stat.title}</p>
-                                    <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                            {statsLoading ? (
+                                <div className="flex items-center justify-center h-16">
+                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                                 </div>
-                                <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                                    <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                            ) : (
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-sm text-muted-foreground">{stat.title}</p>
+                                        <p className="text-2xl font-bold mt-1">{stat.value}</p>
+                                    </div>
+                                    <div className={`w-10 h-10 rounded-xl ${stat.bg} flex items-center justify-center`}>
+                                        <stat.icon className={`w-5 h-5 ${stat.color}`} />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="flex items-center gap-1 mt-3">
-                                <ArrowUpRight className={`w-3.5 h-3.5 ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`} />
-                                <span className={`text-xs font-medium ${stat.change.startsWith('+') ? 'text-green-500' : 'text-red-500'}`}>
-                                    {stat.change}
-                                </span>
-                                <span className="text-xs text-muted-foreground">vs last week</span>
-                            </div>
+                            )}
                         </CardContent>
                     </Card>
                 ))}
             </div>
 
-            {/* Today's Appointments & Activity */}
+            {/* Today's Appointments & OPD Queue */}
             <div className="grid lg:grid-cols-5 gap-6">
-                {/* Appointments */}
                 <Card className="lg:col-span-3 border-border/50">
                     <CardHeader className="flex flex-row items-center justify-between pb-4">
                         <CardTitle className="text-lg font-semibold">Today&apos;s Appointments</CardTitle>
                         <Link href="/dashboard/appointments">
-                            <Button variant="ghost" size="sm">
-                                View All <ArrowRight className="w-4 h-4 ml-1" />
-                            </Button>
+                            <Button variant="ghost" size="sm">View All <ArrowRight className="w-4 h-4 ml-1" /></Button>
                         </Link>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-3">
-                            {RECENT_APPOINTMENTS.map((apt) => (
-                                <div
-                                    key={apt.id}
-                                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                                >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                            <span className="text-xs font-semibold text-primary">
-                                                {apt.patient.split(' ').map(n => n[0]).join('')}
-                                            </span>
+                        {apptsLoading ? (
+                            <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                        ) : recentAppointments.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">No appointments scheduled for today.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {recentAppointments.map((apt: any) => {
+                                    const patientName = apt.patients?.full_name || 'Unknown'
+                                    const doctorName = apt.doctors?.full_name || 'Unknown'
+                                    return (
+                                        <div key={apt.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
+                                            <div className="flex items-center gap-3 min-w-0">
+                                                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-xs font-semibold text-primary">{patientName.split(' ').map((n: string) => n[0]).join('')}</span>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="font-medium text-sm truncate">{patientName}</p>
+                                                    <p className="text-xs text-muted-foreground truncate">{doctorName} &middot; {apt.reason || 'General'}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-shrink-0">
+                                                <span className="text-xs text-muted-foreground hidden sm:inline">{apt.appointment_time}</span>
+                                                <Badge variant="secondary" className={`text-[10px] px-2 ${statusColors[apt.status] || ''}`}>{apt.status?.replace('_', ' ')}</Badge>
+                                            </div>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="font-medium text-sm truncate">{apt.patient}</p>
-                                            <p className="text-xs text-muted-foreground truncate">
-                                                {apt.doctor} &middot; {apt.reason}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 flex-shrink-0">
-                                        <span className="text-xs text-muted-foreground hidden sm:inline">{apt.time}</span>
-                                        <Badge variant="secondary" className={`text-[10px] px-2 ${statusColors[apt.status]}`}>
-                                            {apt.status.replace('_', ' ')}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* OPD Queue */}
                 <Card className="lg:col-span-2 border-border/50">
-                    <CardHeader className="pb-4">
-                        <CardTitle className="text-lg font-semibold">Current OPD Queue</CardTitle>
-                    </CardHeader>
+                    <CardHeader className="pb-4"><CardTitle className="text-lg font-semibold">Current OPD Queue</CardTitle></CardHeader>
                     <CardContent>
-                        <div className="space-y-3">
-                            {[
-                                { num: 1, name: 'Anita Desai', status: 'In Progress', statusColor: 'text-blue-600' },
-                                { num: 2, name: 'Vikram Singh', status: 'Waiting', statusColor: 'text-amber-600' },
-                                { num: 3, name: 'Meera Joshi', status: 'Waiting', statusColor: 'text-amber-600' },
-                                { num: 4, name: 'Arjun Nair', status: 'Waiting', statusColor: 'text-amber-600' },
-                            ].map((item) => (
-                                <div key={item.num} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${item.num === 1 ? 'bg-primary text-white' : 'bg-muted-foreground/10 text-muted-foreground'}`}>
-                                        {item.num}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm truncate">{item.name}</p>
-                                        <p className={`text-xs ${item.statusColor}`}>{item.status}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <Link href="/dashboard/visits">
-                            <Button variant="outline" className="w-full mt-4" size="sm">
-                                Manage Queue <ArrowRight className="w-4 h-4 ml-1" />
-                            </Button>
-                        </Link>
+                        {visitsLoading ? (
+                            <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                        ) : opdQueue.length === 0 ? (
+                            <div className="text-center py-8 text-muted-foreground text-sm">No patients in queue.</div>
+                        ) : (
+                            <div className="space-y-3">
+                                {opdQueue.map((item: any) => {
+                                    const patientName = item.patients?.full_name || 'Unknown'
+                                    const isActive = item.status === 'in_progress'
+                                    return (
+                                        <div key={item.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${isActive ? 'bg-primary text-white' : 'bg-muted-foreground/10 text-muted-foreground'}`}>{item.queue_number || '—'}</div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="font-medium text-sm truncate">{patientName}</p>
+                                                <p className={`text-xs ${isActive ? 'text-blue-600' : 'text-amber-600'}`}>{isActive ? 'In Progress' : 'Waiting'}</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        )}
+                        <Link href="/dashboard/visits"><Button variant="outline" className="w-full mt-4" size="sm">Manage Queue <ArrowRight className="w-4 h-4 ml-1" /></Button></Link>
                     </CardContent>
                 </Card>
             </div>
