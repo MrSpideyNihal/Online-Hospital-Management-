@@ -38,12 +38,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true)
     const supabase = createClient()
 
-    const fetchProfile = useCallback(async (userId: string) => {
-        const { data } = await supabase
+    const fetchProfile = useCallback(async (userId: string, userEmail?: string, userMeta?: Record<string, unknown>) => {
+        const { data, error } = await supabase
             .from('profiles')
             .select('*')
             .eq('id', userId)
             .single()
+
+        // If profile doesn't exist yet (first Google login), auto-create it
+        if ((error && error.code === 'PGRST116') || !data) {
+            const newProfile = {
+                id: userId,
+                email: userEmail || '',
+                full_name: (userMeta?.full_name || userMeta?.name || '') as string,
+                avatar_url: (userMeta?.avatar_url || '') as string,
+                role: 'patient' as const,
+            }
+            const { data: created } = await supabase
+                .from('profiles')
+                .upsert(newProfile, { onConflict: 'id' })
+                .select('*')
+                .single()
+            return created as Profile | null
+        }
+
         return data as Profile | null
     }, [supabase])
 
@@ -58,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const refreshProfile = useCallback(async () => {
         if (!user) return
-        const p = await fetchProfile(user.id)
+        const p = await fetchProfile(user.id, user.email || '', user.user_metadata)
         setProfile(p)
         if (p?.hospital_id) {
             const h = await fetchHospital(p.hospital_id)
@@ -72,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const { data: { user: currentUser } } = await supabase.auth.getUser()
                 setUser(currentUser)
                 if (currentUser) {
-                    const p = await fetchProfile(currentUser.id)
+                    const p = await fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata)
                     setProfile(p)
                     if (p?.hospital_id) {
                         const h = await fetchHospital(p.hospital_id)
@@ -93,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const currentUser = session?.user ?? null
                 setUser(currentUser)
                 if (currentUser) {
-                    const p = await fetchProfile(currentUser.id)
+                    const p = await fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata)
                     setProfile(p)
                     if (p?.hospital_id) {
                         const h = await fetchHospital(p.hospital_id)
@@ -117,8 +135,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHospital(null)
     }
 
+    // Super admin = either env var matches OR profile.role is 'super_admin' in DB
     const superAdminEmail = process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL
-    const isSuperAdmin = !!user?.email && user.email === superAdminEmail
+    const isSuperAdmin = (!!user?.email && !!superAdminEmail && user.email === superAdminEmail) || profile?.role === 'super_admin'
 
     return (
         <AuthContext.Provider

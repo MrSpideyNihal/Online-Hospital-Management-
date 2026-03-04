@@ -5,24 +5,15 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { toast } from 'sonner'
-import { Mail, Lock, ArrowLeft, Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2, Shield } from 'lucide-react'
 
 function LoginForm() {
     const searchParams = useSearchParams()
     const isHospitalRegistration = searchParams.get('type') === 'hospital'
     const redirect = searchParams.get('redirect') || '/dashboard'
-
-    const [email, setEmail] = useState('')
-    const [password, setPassword] = useState('')
-    const [isLoading, setIsLoading] = useState(false)
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
-    const [isSignUp, setIsSignUp] = useState(isHospitalRegistration)
-
     const supabase = createClient()
 
     const handleGoogleLogin = async () => {
@@ -42,37 +33,6 @@ function LoginForm() {
         }
     }
 
-    const handleEmailAuth = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsLoading(true)
-
-        try {
-            if (isSignUp) {
-                const { error } = await supabase.auth.signUp({
-                    email,
-                    password,
-                    options: {
-                        emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
-                    },
-                })
-                if (error) throw error
-                toast.success('Check your email for the confirmation link!')
-            } else {
-                const { error } = await supabase.auth.signInWithPassword({
-                    email,
-                    password,
-                })
-                if (error) throw error
-                window.location.href = redirect
-            }
-        } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Authentication failed'
-            toast.error(message)
-        } finally {
-            setIsLoading(false)
-        }
-    }
-
     return (
         <div className="w-full max-w-md">
             <div className="mb-8 text-center">
@@ -81,45 +41,39 @@ function LoginForm() {
                     Back to Home
                 </Link>
                 <div className="flex justify-center mb-4">
-                    <div className="w-12 h-12 rounded-2xl gradient-bg flex items-center justify-center">
-                        <span className="text-white font-bold text-xl">D</span>
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
+                        <span className="text-white font-bold text-2xl">D</span>
                     </div>
                 </div>
                 <h1 className="text-2xl font-bold">
-                    {isHospitalRegistration ? 'Register Your Hospital' : 'Welcome Back'}
+                    {isHospitalRegistration ? 'Register Your Hospital' : 'Welcome to DentalHub'}
                 </h1>
                 <p className="text-muted-foreground mt-1">
                     {isHospitalRegistration
-                        ? 'Create your hospital account to get started'
-                        : 'Sign in to your DentalHub account'
+                        ? 'Sign in with Google to register your hospital'
+                        : 'Sign in with your Google account to continue'
                     }
                 </p>
             </div>
 
             <Card className="border-border/50 shadow-xl shadow-black/5">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">
-                        {isSignUp ? 'Create Account' : 'Sign In'}
-                    </CardTitle>
+                <CardHeader className="pb-4 text-center">
+                    <CardTitle className="text-lg">Sign In</CardTitle>
                     <CardDescription>
-                        {isSignUp
-                            ? 'Sign up with Google or email to get started'
-                            : 'Use Google for quick access or email & password'
-                        }
+                        One click to access your dental practice dashboard
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                    {/* Google Login */}
+                <CardContent className="space-y-5">
                     <Button
                         variant="outline"
-                        className="w-full h-11"
+                        className="w-full h-12 text-base font-medium border-2 hover:border-primary/50 hover:bg-accent transition-all duration-200"
                         onClick={handleGoogleLogin}
                         disabled={isGoogleLoading}
                     >
                         {isGoogleLoading ? (
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                         ) : (
-                            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                            <svg className="w-5 h-5 mr-3" viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
                                 <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
                                 <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
@@ -129,64 +83,13 @@ function LoginForm() {
                         Continue with Google
                     </Button>
 
-                    <div className="relative">
-                        <Separator />
-                        <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                            OR
-                        </span>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                        <Shield className="w-4 h-4 flex-shrink-0" />
+                        <span>Your data is secured with enterprise-grade encryption. We only access your name and email.</span>
                     </div>
 
-                    {/* Email Login */}
-                    <form onSubmit={handleEmailAuth} className="space-y-3">
-                        <div className="space-y-1.5">
-                            <Label htmlFor="email">Email</Label>
-                            <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    id="email"
-                                    type="email"
-                                    placeholder="you@example.com"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="pl-9 h-11"
-                                    required
-                                />
-                            </div>
-                        </div>
-                        <div className="space-y-1.5">
-                            <Label htmlFor="password">Password</Label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                <Input
-                                    id="password"
-                                    type="password"
-                                    placeholder="••••••••"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    className="pl-9 h-11"
-                                    required
-                                    minLength={6}
-                                />
-                            </div>
-                        </div>
-                        <Button
-                            type="submit"
-                            className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white"
-                            disabled={isLoading}
-                        >
-                            {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                            {isSignUp ? 'Create Account' : 'Sign In'}
-                        </Button>
-                    </form>
-
-                    <p className="text-center text-sm text-muted-foreground">
-                        {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-                        <button
-                            onClick={() => setIsSignUp(!isSignUp)}
-                            className="text-primary font-medium hover:underline"
-                        >
-                            {isSignUp ? 'Sign in' : 'Sign up'}
-                        </button>
+                    <p className="text-center text-xs text-muted-foreground">
+                        By signing in, you agree to our Terms of Service and Privacy Policy
                     </p>
                 </CardContent>
             </Card>

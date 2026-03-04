@@ -1,8 +1,25 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export const dynamic = 'force-dynamic'
+
+// Admin client (service role) — bypasses RLS for role upgrades
+function getAdminClient() {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) return null
+    return createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        serviceKey,
+        { auth: { autoRefreshToken: false, persistSession: false } }
+    )
+}
+
+function getSuperAdminEmail(): string | null {
+    // Check both env var names for robustness
+    return process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || null
+}
 
 export async function GET(request: Request) {
     const { searchParams, origin } = new URL(request.url)
@@ -35,37 +52,56 @@ export async function GET(request: Request) {
         const { error } = await supabase.auth.exchangeCodeForSession(code)
 
         if (!error) {
-            // Check if profile exists, create one if not
             const { data: { user } } = await supabase.auth.getUser()
             if (user) {
-                const { data: profile } = await supabase
+                const admin = getAdminClient()
+                // Use admin client if available (bypasses RLS), fallback to user client
+                const db = admin || supabase
+
+                // Check if profile exists
+                const { data: existingProfile } = await db
                     .from('profiles')
-                    .select('id')
+                    .select('id, role')
                     .eq('id', user.id)
                     .single()
 
-                if (!profile) {
-                    await supabase.from('profiles').insert({
+                const superAdminEmail = getSuperAdminEmail()
+                const isThisSuperAdmin = !!superAdminEmail && user.email === superAdminEmail
+
+                if (!existingProfile) {
+                    // First-time login — create profile
+                    const newRole = isThisSuperAdmin ? 'super_admin' : 'patient'
+                    await db.from('profiles').insert({
                         id: user.id,
-                        email: user.email,
-                        full_name: user.user_metadata?.full_name || user.user_metadata?.name,
-                        avatar_url: user.user_metadata?.avatar_url,
-                        role: 'patient',
+                        email: user.email || '',
+                        full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                        avatar_url: user.user_metadata?.avatar_url || '',
+                        role: newRole,
                     })
-                    // New patient → redirect to patient portal
+
+                    if (isThisSuperAdmin) {
+                        return NextResponse.redirect(`${origin}/admin`)
+                    }
                     return NextResponse.redirect(`${origin}/patient`)
                 }
 
-                // Existing user — redirect based on role
-                if (profile && redirect === '/dashboard') {
-                    const { data: fullProfile } = await supabase
-                        .from('profiles')
-                        .select('role')
-                        .eq('id', user.id)
-                        .single()
-                    if (fullProfile?.role === 'patient') {
-                        return NextResponse.redirect(`${origin}/patient`)
+                // Existing user — check super admin
+                if (isThisSuperAdmin) {
+                    if (existingProfile.role !== 'super_admin') {
+                        await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
                     }
+                    return NextResponse.redirect(`${origin}/admin`)
+                }
+
+                // Route based on existing role
+                if (existingProfile.role === 'super_admin') {
+                    return NextResponse.redirect(`${origin}/admin`)
+                }
+                if (existingProfile.role === 'patient') {
+                    return NextResponse.redirect(`${origin}/patient`)
+                }
+                if (['hospital_admin', 'doctor', 'receptionist'].includes(existingProfile.role)) {
+                    return NextResponse.redirect(`${origin}/dashboard`)
                 }
             }
 
