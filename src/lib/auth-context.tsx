@@ -38,40 +38,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(true)
     const supabase = createClient()
 
-    const fetchProfile = useCallback(async (userId: string, userEmail?: string, userMeta?: Record<string, unknown>) => {
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userId)
-            .single()
-
-        // If profile doesn't exist yet (first Google login), auto-create it
-        if ((error && error.code === 'PGRST116') || !data) {
-            const newProfile = {
-                id: userId,
-                email: userEmail || '',
-                full_name: (userMeta?.full_name || userMeta?.name || '') as string,
-                avatar_url: (userMeta?.avatar_url || '') as string,
-                role: 'patient' as const,
-            }
-            const { data: created } = await supabase
+    const fetchProfile = useCallback(async (userId: string, userEmail?: string, userMeta?: Record<string, unknown>): Promise<Profile | null> => {
+        try {
+            const { data, error } = await supabase
                 .from('profiles')
-                .upsert(newProfile, { onConflict: 'id' })
                 .select('*')
+                .eq('id', userId)
                 .single()
-            return created as Profile | null
-        }
 
-        return data as Profile | null
+            // If profile doesn't exist yet (first Google login), auto-create it
+            if ((error && error.code === 'PGRST116') || !data) {
+                try {
+                    const newProfile = {
+                        id: userId,
+                        email: userEmail || '',
+                        full_name: (userMeta?.full_name || userMeta?.name || '') as string,
+                        avatar_url: (userMeta?.avatar_url || '') as string,
+                        role: 'patient' as const,
+                    }
+                    const { data: created, error: createErr } = await supabase
+                        .from('profiles')
+                        .upsert(newProfile, { onConflict: 'id' })
+                        .select('*')
+                        .single()
+                    if (createErr) {
+                        console.warn('[Auth] Profile create failed (RLS?):', createErr.message)
+                        // Return a synthetic profile so the app doesn't crash
+                        return { ...newProfile, hospital_id: null, phone: null, is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as unknown as Profile
+                    }
+                    return created as Profile | null
+                } catch (e) {
+                    console.warn('[Auth] Profile create exception:', e)
+                    return null
+                }
+            }
+
+            if (error) {
+                console.warn('[Auth] Profile fetch error:', error.message)
+                return null
+            }
+
+            return data as Profile | null
+        } catch (e) {
+            console.warn('[Auth] Profile fetch exception:', e)
+            return null
+        }
     }, [supabase])
 
-    const fetchHospital = useCallback(async (hospitalId: string) => {
-        const { data } = await supabase
-            .from('hospitals')
-            .select('*')
-            .eq('id', hospitalId)
-            .single()
-        return data as Hospital | null
+    const fetchHospital = useCallback(async (hospitalId: string): Promise<Hospital | null> => {
+        try {
+            const { data, error } = await supabase
+                .from('hospitals')
+                .select('*')
+                .eq('id', hospitalId)
+                .single()
+            if (error) {
+                console.warn('[Auth] Hospital fetch error:', error.message)
+                return null
+            }
+            return data as Hospital | null
+        } catch (e) {
+            console.warn('[Auth] Hospital fetch exception:', e)
+            return null
+        }
     }, [supabase])
 
     const refreshProfile = useCallback(async () => {
@@ -108,20 +137,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, session) => {
-                const currentUser = session?.user ?? null
-                setUser(currentUser)
-                if (currentUser) {
-                    const p = await fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata)
-                    setProfile(p)
-                    if (p?.hospital_id) {
-                        const h = await fetchHospital(p.hospital_id)
-                        setHospital(h)
+                try {
+                    const currentUser = session?.user ?? null
+                    setUser(currentUser)
+                    if (currentUser) {
+                        const p = await fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata)
+                        setProfile(p)
+                        if (p?.hospital_id) {
+                            const h = await fetchHospital(p.hospital_id)
+                            setHospital(h)
+                        }
+                    } else {
+                        setProfile(null)
+                        setHospital(null)
                     }
-                } else {
-                    setProfile(null)
-                    setHospital(null)
+                } catch (e) {
+                    console.warn('[Auth] State change error:', e)
+                } finally {
+                    setIsLoading(false)
                 }
-                setIsLoading(false)
             }
         )
 
@@ -129,7 +163,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [supabase, fetchProfile, fetchHospital])
 
     const signOut = async () => {
-        await supabase.auth.signOut()
+        try {
+            await supabase.auth.signOut()
+        } catch (e) {
+            console.warn('[Auth] Sign out error:', e)
+        }
         setUser(null)
         setProfile(null)
         setHospital(null)

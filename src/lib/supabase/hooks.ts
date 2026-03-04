@@ -513,10 +513,14 @@ export function useSearchHospitals(searchQuery: string, city?: string) {
             if (city) q = q.ilike('city', `%${city}%`)
 
             const { data, error } = await q
-            if (error) throw error
+            if (error) {
+                console.warn('[Hooks] Search hospitals error:', error.message)
+                return [] as Hospital[]
+            }
             return data as Hospital[]
         },
         enabled: searchQuery.length > 0 || !!city,
+        retry: 1,
     })
 }
 
