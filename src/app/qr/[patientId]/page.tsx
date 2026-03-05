@@ -1,25 +1,75 @@
-'use client'
-
-import { use } from 'react'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Loader2, User, AlertTriangle, Phone, Mail, Droplets, Calendar } from 'lucide-react'
-import { usePatient } from '@/lib/supabase/hooks'
+import { User, AlertTriangle, Phone, Mail, Droplets, Calendar, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
-export default function PatientQRPage({ params }: { params: Promise<{ patientId: string }> }) {
-    const { patientId } = use(params)
-    const { data: patient, isLoading, isError } = usePatient(patientId)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
-            </div>
-        )
+type PatientCard = {
+    id: string
+    full_name: string
+    patient_id_number: string | null
+    gender: string | null
+    date_of_birth: string | null
+    blood_group: string | null
+    phone: string | null
+    email: string | null
+    allergies: string[] | null
+    emergency_contact_name: string | null
+    emergency_contact_phone: string | null
+    last_visit: string | null
+}
+
+type UpcomingAppointment = {
+    appointment_date: string
+    appointment_time: string | null
+    reason: string | null
+    doctors?: { full_name: string | null } | null
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+async function getPatientCard(patientId: string): Promise<{ patient: PatientCard | null; nextAppointment: UpcomingAppointment | null }> {
+    if (!UUID_RE.test(patientId)) {
+        return { patient: null, nextAppointment: null }
     }
 
-    if (isError || !patient) {
+    const admin = createAdminClient()
+    const { data: patientData, error: patientError } = await admin
+        .from('patients')
+        .select('id, full_name, patient_id_number, gender, date_of_birth, blood_group, phone, email, allergies, emergency_contact_name, emergency_contact_phone, last_visit')
+        .eq('id', patientId)
+        .maybeSingle()
+
+    if (patientError || !patientData) {
+        return { patient: null, nextAppointment: null }
+    }
+
+    const today = new Date().toISOString().split('T')[0]
+    const { data: nextAppointmentData } = await admin
+        .from('appointments')
+        .select('appointment_date, appointment_time, reason, doctors:doctor_id(full_name)')
+        .eq('patient_id', patientId)
+        .gte('appointment_date', today)
+        .not('status', 'eq', 'cancelled')
+        .order('appointment_date', { ascending: true })
+        .order('appointment_time', { ascending: true })
+        .limit(1)
+        .maybeSingle()
+
+    return {
+        patient: patientData as PatientCard,
+        nextAppointment: (nextAppointmentData as UpcomingAppointment | null) || null,
+    }
+}
+
+export default async function PatientQRPage({ params }: { params: Promise<{ patientId: string }> }) {
+    const { patientId } = await params
+    const { patient, nextAppointment } = await getPatientCard(patientId)
+
+    if (!patient) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <Card className="w-full max-w-md">
@@ -112,6 +162,16 @@ export default function PatientQRPage({ params }: { params: Promise<{ patientId:
                             {patient.emergency_contact_phone && (
                                 <p className="text-sm text-muted-foreground">{patient.emergency_contact_phone}</p>
                             )}
+                        </div>
+                    )}
+
+                    {nextAppointment && (
+                        <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
+                            <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mb-1 flex items-center gap-1">
+                                <Clock className="w-3 h-3" /> Upcoming Appointment
+                            </p>
+                            <p className="text-sm font-medium">{formatDate(nextAppointment.appointment_date)} {nextAppointment.appointment_time ? `at ${nextAppointment.appointment_time}` : ''}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{nextAppointment.reason || 'Dental Appointment'}{nextAppointment.doctors?.full_name ? ` • Dr. ${nextAppointment.doctors.full_name}` : ''}</p>
                         </div>
                     )}
 

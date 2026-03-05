@@ -627,3 +627,10 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- =============================================================================
+-- IMPORTANT
+-- =============================================================================
+-- For production databases, run `supabase/production-hardening.sql` after this
+-- base schema to apply strict write policies, race-safe ID generation, and
+-- appointment double-booking protection.

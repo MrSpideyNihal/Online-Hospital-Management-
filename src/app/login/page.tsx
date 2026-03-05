@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -18,6 +18,7 @@ function LoginForm() {
     const redirect = sanitizeRedirectPath(searchParams.get('redirect'), '/dashboard')
     const authError = searchParams.get('error')
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+    const oauthResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const supabase = createClient()
     const { user, profile, isLoading, isSuperAdmin } = useAuth()
 
@@ -56,6 +57,15 @@ function LoginForm() {
         }
     }, [authError])
 
+    useEffect(() => {
+        return () => {
+            if (oauthResetTimerRef.current) {
+                clearTimeout(oauthResetTimerRef.current)
+                oauthResetTimerRef.current = null
+            }
+        }
+    }, [])
+
     // Always redirect to production URL, never deploy-preview URLs
     const getBaseUrl = () => {
         if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
@@ -64,6 +74,10 @@ function LoginForm() {
     }
 
     const handleGoogleLogin = async () => {
+        if (oauthResetTimerRef.current) {
+            clearTimeout(oauthResetTimerRef.current)
+            oauthResetTimerRef.current = null
+        }
         setIsGoogleLoading(true)
         try {
             const baseUrl = getBaseUrl()
@@ -76,8 +90,11 @@ function LoginForm() {
                 },
             })
             if (error) throw error
-            // If we're still on the page after 4 seconds (user cancelled popup), reset spinner
-            setTimeout(() => setIsGoogleLoading(false), 4000)
+            // If the OAuth popup is canceled, the callback never returns; recover button state.
+            oauthResetTimerRef.current = setTimeout(() => {
+                setIsGoogleLoading(false)
+                oauthResetTimerRef.current = null
+            }, 10000)
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to sign in with Google'
             toast.error(message)

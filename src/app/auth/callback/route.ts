@@ -221,6 +221,27 @@ export async function GET(request: Request) {
             let hospitalName = 'Dental Clinic'
             let hospitalStatus: string | null = null
 
+            // Never trust a pre-filled hospital_id without ownership verification.
+            if (hospitalId) {
+                const { data: linkedHospital, error: linkedErr } = await db
+                    .from('hospitals')
+                    .select('id, name, status, owner_id')
+                    .eq('id', hospitalId)
+                    .maybeSingle()
+
+                if (linkedErr) {
+                    console.error('[Callback] Linked hospital validation failed:', linkedErr.message)
+                    return NextResponse.redirect(`${baseUrl}/login?error=hospital_creation_failed`)
+                }
+
+                if (!linkedHospital || linkedHospital.owner_id !== user.id) {
+                    hospitalId = null
+                } else {
+                    hospitalName = linkedHospital.name || hospitalName
+                    hospitalStatus = linkedHospital.status || hospitalStatus
+                }
+            }
+
             // Reuse an existing owned hospital if present to avoid duplicates.
             if (!hospitalId) {
                 const { data: ownedHospital } = await db
@@ -265,6 +286,10 @@ export async function GET(request: Request) {
                     .maybeSingle()
                 hospitalName = hospitalInfo?.name || hospitalName
                 hospitalStatus = hospitalInfo?.status || null
+            }
+
+            if (!hospitalId) {
+                return NextResponse.redirect(`${baseUrl}/login?error=hospital_creation_failed`)
             }
 
             const { error: upgradeErr } = await db

@@ -30,35 +30,93 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var key='__chunk_reload_count_v2';
-                var count=parseInt(sessionStorage.getItem(key)||'0',10);
-                try{
-                  var currentUrl=new URL(window.location.href);
-                  if(currentUrl.searchParams.has('__chunkfix')){
-                    currentUrl.searchParams.delete('__chunkfix');
-                    currentUrl.searchParams.delete('_rsc');
-                    history.replaceState(null,'',currentUrl.pathname+currentUrl.search+currentUrl.hash);
-                    sessionStorage.removeItem(key);
-                    count=0;
+                var key='__chunk_reload_state_v3';
+                function loadState(){
+                  try{
+                    var raw=sessionStorage.getItem(key);
+                    if(!raw)return {count:0,ts:0};
+                    var parsed=JSON.parse(raw);
+                    return {count:Number(parsed.count)||0,ts:Number(parsed.ts)||0};
+                  }catch(_e){
+                    return {count:0,ts:0};
                   }
-                }catch(_e){}
+                }
+                function saveState(state){
+                  try{sessionStorage.setItem(key,JSON.stringify(state));}catch(_e){}
+                }
+                function clearState(){
+                  try{sessionStorage.removeItem(key);}catch(_e){}
+                }
+                function cleanChunkFixParams(){
+                  try{
+                    var cleanUrl=new URL(window.location.href);
+                    var hadFix=cleanUrl.searchParams.has('__chunkfix')||cleanUrl.searchParams.has('__chunkts')||cleanUrl.searchParams.has('_rsc');
+                    cleanUrl.searchParams.delete('__chunkfix');
+                    cleanUrl.searchParams.delete('__chunkts');
+                    cleanUrl.searchParams.delete('_rsc');
+                    if(hadFix){
+                      history.replaceState(null,'',cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+                    }
+                  }catch(_e){}
+                }
+                function resetCachesBestEffort(){
+                  try{
+                    if('serviceWorker' in navigator){
+                      navigator.serviceWorker.getRegistrations().then(function(regs){
+                        regs.forEach(function(reg){
+                          try{reg.unregister();}catch(_e){}
+                        });
+                      });
+                    }
+                  }catch(_e){}
+                  try{
+                    if('caches' in window){
+                      caches.keys().then(function(keys){
+                        keys.forEach(function(k){
+                          try{caches.delete(k);}catch(_e){}
+                        });
+                      });
+                    }
+                  }catch(_e){}
+                }
+                var state=loadState();
+                var now=Date.now();
+                if(!state.ts||now-state.ts>10*60*1000){
+                  state={count:0,ts:now};
+                  saveState(state);
+                }
+                cleanChunkFixParams();
                 function doReload(){
-                  if(count<3){
-                    sessionStorage.setItem(key,String(count+1));
+                  if(state.count<4){
+                    state.count+=1;
+                    state.ts=Date.now();
+                    saveState(state);
+                    resetCachesBestEffort();
                     try{
                       var url=new URL(window.location.href);
-                      // Netlify varies cache by _rsc; this forces a fresh HTML key when stale chunks are referenced.
-                      url.searchParams.set('__chunkfix','1');
-                      url.searchParams.set('_rsc',Date.now().toString(36));
+                      // Force a fresh document/cache key when stale chunk URLs are referenced.
+                      url.searchParams.set('__chunkfix',String(state.count));
+                      url.searchParams.set('__chunkts',Date.now().toString(36));
+                      url.searchParams.set('_rsc',Math.random().toString(36).slice(2));
                       window.location.replace(url.pathname+url.search+url.hash);
                     }catch(_e){
                       window.location.reload();
                     }
+                  }else{
+                    clearState();
+                    window.location.replace('/');
                   }
+                }
+                function hasChunkMessage(msg){
+                  return msg.indexOf('Loading chunk')!==-1
+                    || msg.indexOf('ChunkLoadError')!==-1
+                    || msg.indexOf('Loading CSS chunk')!==-1
+                    || msg.indexOf('MIME type')!==-1
+                    || msg.indexOf('Failed to fetch dynamically imported module')!==-1;
                 }
                 window.addEventListener('error',function(e){
                   var m=e.message||'';
-                  if(m.indexOf('Loading chunk')!==-1||m.indexOf('ChunkLoadError')!==-1||m.indexOf('Loading CSS chunk')!==-1||m.indexOf('MIME type')!==-1)doReload();
+                  if(hasChunkMessage(m))doReload();
                   var t=e.target;
                   if(t&&(t.tagName==='SCRIPT'||t.tagName==='LINK')){
                     var u=t.src||t.href||'';
@@ -67,8 +125,16 @@ export default function RootLayout({
                 },true);
                 window.addEventListener('unhandledrejection',function(e){
                   var r=e.reason;
-                  if(r&&(r.name==='ChunkLoadError'||(r.message&&(r.message.indexOf('Loading chunk')!==-1||r.message.indexOf('Failed to fetch')!==-1))))doReload();
+                  if(r&&(r.name==='ChunkLoadError'||(r.message&&hasChunkMessage(r.message))))doReload();
                 });
+                window.addEventListener('pageshow',function(e){
+                  if(e.persisted)doReload();
+                });
+                // If the app stays stable for a few seconds, clear the retry state.
+                setTimeout(function(){
+                  clearState();
+                  cleanChunkFixParams();
+                },5000);
               })();
             `,
           }}

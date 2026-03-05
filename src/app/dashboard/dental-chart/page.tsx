@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { TOOTH_CONDITIONS } from '@/lib/utils'
 import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
@@ -44,6 +45,22 @@ export default function DentalChartPage() {
     const [selectedCondition, setSelectedCondition] = useState('healthy')
     const [toothConditions, setToothConditions] = useState<ToothCondition[]>([])
     const [notes, setNotes] = useState('')
+    const [patientSearch, setPatientSearch] = useState('')
+
+    const patientSearchTerm = patientSearch.trim().toLowerCase()
+    const filteredPatients = patients.filter((p) => {
+        if (!patientSearchTerm) return true
+        return (
+            p.full_name.toLowerCase().includes(patientSearchTerm) ||
+            (p.patient_id_number || '').toLowerCase().includes(patientSearchTerm) ||
+            (p.phone || '').toLowerCase().includes(patientSearchTerm)
+        )
+    })
+
+    const selectedPatient = selectedPatientId ? patients.find((p) => p.id === selectedPatientId) : null
+    const patientOptions = selectedPatient && !filteredPatients.some((p) => p.id === selectedPatient.id)
+        ? [selectedPatient, ...filteredPatients]
+        : filteredPatients
 
     // Populate local state from DB records when patient changes
     useEffect(() => {
@@ -175,17 +192,28 @@ export default function DentalChartPage() {
             {/* Patient Selector */}
             <Card className="border-border/50">
                 <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                        <Label className="whitespace-nowrap font-medium">Patient</Label>
+                    <div className="flex items-start gap-4">
+                        <Label className="whitespace-nowrap font-medium pt-2">Patient</Label>
                         {pLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-                        <select
-                            className="flex-1 h-9 rounded-md border border-input bg-background px-3 text-sm"
-                            value={selectedPatientId || ''}
-                            onChange={(e) => { setSelectedPatientId(e.target.value || null); setSelectedTooth(null); setToothConditions([]) }}
-                        >
-                            <option value="">Select a patient to load/save chart...</option>
-                            {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
-                        </select>
+                        <div className="flex-1 space-y-2">
+                            <Input
+                                placeholder="Search patient by name, ID, or phone..."
+                                value={patientSearch}
+                                onChange={(e) => setPatientSearch(e.target.value)}
+                                className="h-9"
+                            />
+                            <select
+                                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                                value={selectedPatientId || ''}
+                                onChange={(e) => { setSelectedPatientId(e.target.value || null); setSelectedTooth(null); setToothConditions([]) }}
+                            >
+                                <option value="">Select a patient to load/save chart...</option>
+                                {patientOptions.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
+                            </select>
+                            {patientOptions.length === 0 && (
+                                <p className="text-xs text-muted-foreground">No patients match your search.</p>
+                            )}
+                        </div>
                         )}
                         {rLoading && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
                     </div>

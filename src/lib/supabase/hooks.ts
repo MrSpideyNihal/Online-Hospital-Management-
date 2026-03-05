@@ -8,6 +8,93 @@ import type {
 
 const supabase = createClient()
 
+type MyHospitalSnapshot = Pick<Hospital, 'id' | 'status' | 'is_frozen'> | null
+
+const HOSPITAL_WRITE_GUARD_TTL_MS = 15000
+let hospitalWriteGuardCache: { fetchedAt: number; snapshot: MyHospitalSnapshot } | null = null
+
+function getHospitalWriteBlockReason(snapshot: MyHospitalSnapshot): string | null {
+    if (!snapshot) {
+        return 'Hospital is not linked to your account yet. Please refresh or sign in again.'
+    }
+    if (snapshot.is_frozen) {
+        return 'Hospital access is currently frozen by admin. Contact support to reactivate your account.'
+    }
+    if (snapshot.status === 'pending') {
+        return 'Your hospital is pending approval. Only Settings and Notifications are available right now.'
+    }
+    if (snapshot.status === 'rejected') {
+        return 'Your hospital application is rejected. Update details in Settings and contact support.'
+    }
+    if (snapshot.status !== 'approved') {
+        return 'Hospital access is currently restricted. Please contact support.'
+    }
+    return null
+}
+
+async function fetchMyHospitalSnapshot(force = false): Promise<MyHospitalSnapshot> {
+    const now = Date.now()
+    if (!force && hospitalWriteGuardCache && now - hospitalWriteGuardCache.fetchedAt < HOSPITAL_WRITE_GUARD_TTL_MS) {
+        return hospitalWriteGuardCache.snapshot
+    }
+
+    const res = await fetch('/api/me/hospital', { cache: 'no-store' })
+    if (!res.ok) {
+        throw new Error('Unable to verify hospital access. Please refresh and try again.')
+    }
+
+    const snapshot = (await res.json()) as MyHospitalSnapshot
+    hospitalWriteGuardCache = { fetchedAt: now, snapshot }
+    return snapshot
+}
+
+async function assertHospitalWriteAccess(expectedHospitalId?: string | null) {
+    const snapshot = await fetchMyHospitalSnapshot()
+    const blockedReason = getHospitalWriteBlockReason(snapshot)
+    if (blockedReason) {
+        throw new Error(blockedReason)
+    }
+
+    if (expectedHospitalId && snapshot?.id !== expectedHospitalId) {
+        throw new Error('Hospital context changed. Please refresh and try again.')
+    }
+}
+
+function toMutationError(
+    error: { message?: string; code?: string },
+    context?: 'appointment' | 'invoice' | 'patient'
+): Error {
+    if (error.code === '42501') {
+        return new Error('This action is not allowed for your current hospital status.')
+    }
+
+    if (error.code === '23505' && context === 'appointment') {
+        return new Error('This doctor already has an appointment at the selected date and time.')
+    }
+
+    if (error.code === '23505' && context === 'invoice') {
+        return new Error('A duplicate invoice number was detected. Please retry once.')
+    }
+
+    if (error.code === '23505' && context === 'patient') {
+        return new Error('A duplicate patient ID was detected. Please retry once.')
+    }
+
+    return new Error(error.message || 'Request failed')
+}
+
+function generateClientPatientIdNumber() {
+    const tail = `${Date.now()}`.slice(-7)
+    return `PAT-${tail}`
+}
+
+function generateClientInvoiceNumber() {
+    const now = new Date()
+    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
+    const token = `${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${Math.floor(10 + Math.random() * 90)}`
+    return `INV-${ym}-${token}`
+}
+
 async function parseApiJson<T>(res: Response): Promise<T> {
     const contentType = res.headers.get('content-type') || ''
     const isJson = contentType.includes('application/json')
@@ -75,12 +162,17 @@ export function useCreatePatient() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (patient: Partial<Patient> & { hospital_id: string; full_name: string }) => {
+            await assertHospitalWriteAccess(patient.hospital_id)
+
             const { data, error } = await supabase
                 .from('patients')
-                .insert(patient)
+                .insert({
+                    ...patient,
+                    patient_id_number: patient.patient_id_number || generateClientPatientIdNumber(),
+                })
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'patient')
             return data as Patient
         },
         onSuccess: (data) => {
@@ -93,13 +185,15 @@ export function useUpdatePatient() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Patient> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('patients')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'patient')
             return data as Patient
         },
         onSuccess: (data) => {
@@ -113,8 +207,10 @@ export function useDeletePatient() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, hospitalId }: { id: string; hospitalId: string }) => {
+            await assertHospitalWriteAccess(hospitalId)
+
             const { error } = await supabase.from('patients').delete().eq('id', id)
-            if (error) throw error
+            if (error) throw toMutationError(error, 'patient')
             return { id, hospitalId }
         },
         onSuccess: (data) => {
@@ -148,12 +244,14 @@ export function useCreateDoctor() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (doctor: Partial<Doctor> & { hospital_id: string; full_name: string }) => {
+            await assertHospitalWriteAccess(doctor.hospital_id)
+
             const { data, error } = await supabase
                 .from('doctors')
                 .insert(doctor)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Doctor
         },
         onSuccess: (data) => {
@@ -166,13 +264,15 @@ export function useUpdateDoctor() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Doctor> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('doctors')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Doctor
         },
         onSuccess: (data) => {
@@ -214,12 +314,14 @@ export function useCreateAppointment() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (appointment: Partial<Appointment> & { hospital_id: string }) => {
+            await assertHospitalWriteAccess(appointment.hospital_id)
+
             const { data, error } = await supabase
                 .from('appointments')
                 .insert(appointment)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'appointment')
             return data as Appointment
         },
         onSuccess: (data) => {
@@ -232,13 +334,15 @@ export function useUpdateAppointment() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Appointment> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('appointments')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'appointment')
             return data as Appointment
         },
         onSuccess: (data) => {
@@ -277,12 +381,14 @@ export function useCreateVisit() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (visit: Partial<Visit> & { hospital_id: string }) => {
+            await assertHospitalWriteAccess(visit.hospital_id)
+
             const { data, error } = await supabase
                 .from('visits')
                 .insert(visit)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Visit
         },
         onSuccess: (data) => {
@@ -295,13 +401,15 @@ export function useUpdateVisit() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Visit> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('visits')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Visit
         },
         onSuccess: (data) => {
@@ -335,12 +443,45 @@ export function useSaveDentalChartRecord() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (record: Omit<DentalChart, 'id' | 'recorded_at'>) => {
+            await assertHospitalWriteAccess(record.hospital_id)
+
+            const { data: existing, error: existingError } = await supabase
+                .from('dental_charts')
+                .select('id')
+                .eq('hospital_id', record.hospital_id)
+                .eq('patient_id', record.patient_id)
+                .eq('tooth_number', record.tooth_number)
+                .order('recorded_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+            if (existingError) throw toMutationError(existingError)
+
+            if (existing?.id) {
+                const { data, error } = await supabase
+                    .from('dental_charts')
+                    .update({
+                        visit_id: record.visit_id,
+                        surface: record.surface,
+                        condition: record.condition,
+                        notes: record.notes,
+                        recorded_by: record.recorded_by,
+                    })
+                    .eq('id', existing.id)
+                    .select()
+                    .single()
+
+                if (error) throw toMutationError(error)
+                return data as DentalChart
+            }
+
             const { data, error } = await supabase
                 .from('dental_charts')
-                .upsert(record, { onConflict: 'patient_id,tooth_number' })
+                .insert(record)
                 .select()
                 .single()
-            if (error) throw error
+
+            if (error) throw toMutationError(error)
             return data as DentalChart
         },
         onSuccess: (data) => {
@@ -374,12 +515,14 @@ export function useCreatePrescription() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (rx: Partial<Prescription> & { hospital_id: string }) => {
+            await assertHospitalWriteAccess(rx.hospital_id)
+
             const { data, error } = await supabase
                 .from('prescriptions')
                 .insert(rx)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Prescription
         },
         onSuccess: (data) => {
@@ -413,12 +556,17 @@ export function useCreateInvoice() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (invoice: Partial<Invoice> & { hospital_id: string }) => {
+            await assertHospitalWriteAccess(invoice.hospital_id)
+
             const { data, error } = await supabase
                 .from('invoices')
-                .insert(invoice)
+                .insert({
+                    ...invoice,
+                    invoice_number: invoice.invoice_number || generateClientInvoiceNumber(),
+                })
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'invoice')
             return data as Invoice
         },
         onSuccess: (data) => {
@@ -431,13 +579,15 @@ export function useUpdateInvoice() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Invoice> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('invoices')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error, 'invoice')
             return data as Invoice
         },
         onSuccess: (data) => {
@@ -665,12 +815,14 @@ export function useCreateHospitalService() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (service: Partial<HospitalService> & { hospital_id: string; service_name: string }) => {
+            await assertHospitalWriteAccess(service.hospital_id)
+
             const { data, error } = await supabase
                 .from('hospital_services')
                 .insert(service)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as HospitalService
         },
         onSuccess: (data) => {
@@ -683,13 +835,15 @@ export function useUpdateHospitalService() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<HospitalService> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('hospital_services')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as HospitalService
         },
         onSuccess: (data) => {
@@ -702,8 +856,10 @@ export function useDeleteHospitalService() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, hospitalId }: { id: string; hospitalId: string }) => {
+            await assertHospitalWriteAccess(hospitalId)
+
             const { error } = await supabase.from('hospital_services').delete().eq('id', id)
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return { id, hospitalId }
         },
         onSuccess: (data) => {
@@ -776,12 +932,14 @@ export function useCreateTreatment() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async (treatment: Partial<Treatment> & { hospital_id: string; patient_id: string; treatment_type: string }) => {
+            await assertHospitalWriteAccess(treatment.hospital_id)
+
             const { data, error } = await supabase
                 .from('treatments')
                 .insert(treatment)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Treatment
         },
         onSuccess: (data) => {
@@ -794,13 +952,15 @@ export function useUpdateTreatment() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Treatment> & { id: string }) => {
+            await assertHospitalWriteAccess()
+
             const { data, error } = await supabase
                 .from('treatments')
                 .update(updates)
                 .eq('id', id)
                 .select()
                 .single()
-            if (error) throw error
+            if (error) throw toMutationError(error)
             return data as Treatment
         },
         onSuccess: (data) => {

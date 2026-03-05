@@ -37,6 +37,12 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         }
     }, [isLoading, user, router])
 
+    useEffect(() => {
+        if (!isLoading && user && profile?.role && profile.role !== 'patient') {
+            router.replace(profile.role === 'super_admin' ? '/admin' : '/dashboard')
+        }
+    }, [isLoading, user, profile, router])
+
     const handleLogout = async () => {
         await signOut()
         router.push('/')
@@ -50,7 +56,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
         )
     }
 
-    if (!user) return null
+    if (!user || (profile?.role && profile.role !== 'patient')) return null
 
     const NavContent = () => (
         <div className="flex flex-col h-full">

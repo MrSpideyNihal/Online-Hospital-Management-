@@ -49,6 +49,39 @@ export async function GET() {
             }
         }
 
+        // Prevent privilege escalation via tampered profile.hospital_id.
+        if (hospitalId && profile?.role === 'hospital_admin') {
+            const { data: linkedHospital, error: linkedErr } = await admin
+                .from('hospitals')
+                .select('id, owner_id')
+                .eq('id', hospitalId)
+                .maybeSingle()
+
+            if (linkedErr) {
+                return NextResponse.json({ error: linkedErr.message }, { status: 500 })
+            }
+
+            if (!linkedHospital || linkedHospital.owner_id !== user.id) {
+                const { data: ownedHospital, error: ownedErr } = await admin
+                    .from('hospitals')
+                    .select('id')
+                    .eq('owner_id', user.id)
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+                if (ownedErr) {
+                    return NextResponse.json({ error: ownedErr.message }, { status: 500 })
+                }
+
+                hospitalId = ownedHospital?.id || null
+                await admin
+                    .from('profiles')
+                    .update({ hospital_id: hospitalId })
+                    .eq('id', user.id)
+            }
+        }
+
         if (!hospitalId) {
             return NextResponse.json(null)
         }
