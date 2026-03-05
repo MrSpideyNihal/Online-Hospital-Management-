@@ -9,14 +9,18 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-# Hashed static assets: cache forever (content-addressed, safe to cache)
+# Default: never cache anything (pages, API routes, data requests)
+# The more-specific _next/static rule below overrides this for hashed assets.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+
+# Hashed static assets: cache forever (content-addressed filenames, safe to cache)
+# This MUST come after the catch-all so it overrides for static files.
 [[headers]]
   for = "/_next/static/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
-
-# HTML & API routes: never cache (middleware also sets these but this covers edge-served pages)
-[[headers]]
-  for = "/*.html"
-  [headers.values]
-    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = ""
