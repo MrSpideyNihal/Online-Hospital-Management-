@@ -27,29 +27,26 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const [mounted, setMounted] = useState(false)
-    const { user, profile, isLoading, isSuperAdmin, signOut } = useAuth()
+    const { user, isLoading, isSuperAdmin, signOut } = useAuth()
     const { theme, setTheme } = useTheme()
 
     useEffect(() => { setMounted(true) }, [])
 
     // Auth guard — only super admin can access
-    // Wait for profile to load before checking isSuperAdmin (avoids false redirect)
-    const profileLoaded = !isLoading && profile !== null
-
     useEffect(() => {
         if (!isLoading && !user) {
             router.push('/login')
-        } else if (profileLoaded && user && !isSuperAdmin) {
+        } else if (!isLoading && user && !isSuperAdmin) {
             router.push('/dashboard')
         }
-    }, [isLoading, profileLoaded, user, isSuperAdmin, router])
+    }, [isLoading, user, isSuperAdmin, router])
 
     const handleLogout = async () => {
         await signOut()
         router.push('/')
     }
 
-    if (isLoading || (user && !profileLoaded)) {
+    if (isLoading) {
         return (
             <div className="min-h-screen flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-red-500" />
