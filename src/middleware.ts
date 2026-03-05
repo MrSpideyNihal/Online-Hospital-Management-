@@ -40,7 +40,11 @@ export async function middleware(request: NextRequest) {
 
     // IMPORTANT: This refreshes the auth token if expired.
     // Without this, the client-side auth will not detect the session.
-    await supabase.auth.getUser()
+    try {
+        await supabase.auth.getUser()
+    } catch {
+        // Auth refresh failed — continue without blocking the request
+    }
 
     return supabaseResponse
 }

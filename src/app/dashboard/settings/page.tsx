@@ -53,6 +53,29 @@ export default function SettingsPage() {
 
     const handleSave = (section?: string) => {
         if (!hospitalId) return
+        // Required field validation
+        if ((!section || section === 'general') && !hospitalName.trim()) {
+            toast.error('Hospital name is required'); return
+        }
+        if ((!section || section === 'general') && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+            toast.error('Please enter a valid email'); return
+        }
+        // Validate map embed URL for security (only Google Maps allowed)
+        if ((!section || section === 'location') && mapEmbed) {
+            try {
+                const embedUrl = new URL(mapEmbed)
+                if (!embedUrl.hostname.endsWith('google.com')) {
+                    toast.error('Map embed URL must be from google.com'); return
+                }
+            } catch {
+                toast.error('Invalid map embed URL'); return
+            }
+        }
+        // Validate hex colors
+        const hexRegex = /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/
+        if ((!section || section === 'branding') && (!hexRegex.test(primaryColor) || !hexRegex.test(secondaryColor))) {
+            toast.error('Invalid color format. Use hex like #0ea5e9'); return
+        }
         const updates: Record<string, unknown> = {}
         if (!section || section === 'general') {
             Object.assign(updates, { name: hospitalName, email, phone, about_text: aboutText, mission })
@@ -213,9 +236,9 @@ export default function SettingsPage() {
                                 <Input value={mapEmbed} onChange={(e) => setMapEmbed(e.target.value)} placeholder="https://www.google.com/maps/embed?pb=..." />
                                 <p className="text-xs text-muted-foreground">Paste the embed URL from Google Maps share dialog.</p>
                             </div>
-                            {mapEmbed && (
+                            {mapEmbed && (() => { try { return new URL(mapEmbed).hostname.endsWith('google.com') } catch { return false } })() && (
                                 <div className="rounded-xl overflow-hidden border">
-                                    <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" />
+                                    <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
                                 </div>
                             )}
                             <Button onClick={() => handleSave('location')} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={updateHospital.isPending}>

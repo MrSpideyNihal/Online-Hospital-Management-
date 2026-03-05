@@ -34,8 +34,8 @@ export default function DashboardPage() {
     const { hospitalId } = useAuth()
     const today = new Date().toISOString().split('T')[0]
 
-    const { data: stats, isLoading: statsLoading } = useDashboardStats(hospitalId)
-    const { data: appointments, isLoading: apptsLoading } = useAppointments(hospitalId, { date: today })
+    const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(hospitalId)
+    const { data: appointments, isLoading: apptsLoading, isError: apptsError } = useAppointments(hospitalId, { date: today })
     const { data: visits, isLoading: visitsLoading } = useVisits(hospitalId, today)
 
     const statCards = [
@@ -89,6 +89,8 @@ export default function DashboardPage() {
                                 <div className="flex items-center justify-center h-16">
                                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                                 </div>
+                            ) : statsError ? (
+                                <div className="flex items-center justify-center h-16 text-sm text-destructive">Failed to load</div>
                             ) : (
                                 <div className="flex items-start justify-between">
                                     <div>
@@ -117,6 +119,8 @@ export default function DashboardPage() {
                     <CardContent>
                         {apptsLoading ? (
                             <div className="flex items-center justify-center h-32"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+                        ) : apptsError ? (
+                            <div className="text-center py-8 text-destructive text-sm">Failed to load appointments. Please refresh the page.</div>
                         ) : recentAppointments.length === 0 ? (
                             <div className="text-center py-8 text-muted-foreground text-sm">No appointments scheduled for today.</div>
                         ) : (

@@ -23,7 +23,7 @@ import type { Doctor } from '@/types/database'
 
 export default function DoctorsPage() {
     const { hospitalId } = useAuth()
-    const { data: doctors = [], isLoading } = useDoctors(hospitalId)
+    const { data: doctors = [], isLoading, isError } = useDoctors(hospitalId)
     const createDoctor = useCreateDoctor()
     const updateDoctor = useUpdateDoctor()
 
@@ -53,7 +53,11 @@ export default function DoctorsPage() {
     }
 
     const handleEditDoctor = () => {
-        if (!editingDoctor || !fName.trim()) { toast.error('Name is required'); return }
+        if (!editingDoctor) return
+        if (!fName.trim()) { toast.error('Doctor name is required'); return }
+        if (!fSpec) { toast.error('Specialization is required'); return }
+        if (fExp && (isNaN(Number(fExp)) || Number(fExp) < 0)) { toast.error('Experience must be a positive number'); return }
+        if (fFee && (isNaN(Number(fFee)) || Number(fFee) < 0)) { toast.error('Consultation fee must be a positive number'); return }
         updateDoctor.mutate({
             id: editingDoctor.id,
             full_name: fName.trim(),
@@ -77,7 +81,11 @@ export default function DoctorsPage() {
     }
 
     const handleCreate = () => {
-        if (!hospitalId || !fName.trim()) { toast.error('Name is required'); return }
+        if (!hospitalId) return
+        if (!fName.trim()) { toast.error('Doctor name is required'); return }
+        if (!fSpec) { toast.error('Specialization is required'); return }
+        if (fExp && (isNaN(Number(fExp)) || Number(fExp) < 0)) { toast.error('Experience must be a positive number'); return }
+        if (fFee && (isNaN(Number(fFee)) || Number(fFee) < 0)) { toast.error('Consultation fee must be a positive number'); return }
         createDoctor.mutate({
             hospital_id: hospitalId,
             full_name: fName.trim(),
@@ -103,6 +111,16 @@ export default function DoctorsPage() {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
     }
 
+    if (isError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load doctors</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -120,7 +138,7 @@ export default function DoctorsPage() {
                         <DialogHeader><DialogTitle>Add New Doctor</DialogTitle></DialogHeader>
                         <div className="grid gap-4 py-4">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5"><Label>Full Name *</Label><Input placeholder="Dr. Name" value={fName} onChange={e => setFName(e.target.value)} /></div>
+                                <div className="space-y-1.5"><Label>Full Name *</Label><Input placeholder="Dr. Name" maxLength={100} value={fName} onChange={e => setFName(e.target.value)} /></div>
                                 <div className="space-y-1.5"><Label>Email</Label><Input type="email" placeholder="doctor@hospital.com" value={fEmail} onChange={e => setFEmail(e.target.value)} /></div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">

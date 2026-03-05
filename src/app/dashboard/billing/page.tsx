@@ -29,7 +29,7 @@ const paymentStatusColors: Record<string, string> = {
 
 export default function BillingPage() {
     const { hospitalId } = useAuth()
-    const { data: invoices = [], isLoading } = useInvoices(hospitalId)
+    const { data: invoices = [], isLoading, isError } = useInvoices(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const createInvoice = useCreateInvoice()
     const updateInvoice = useUpdateInvoice()
@@ -72,6 +72,11 @@ export default function BillingPage() {
         if (!hospitalId || !fPatient) { toast.error('Patient is required'); return }
         const validItems = items.filter(i => i.description.trim())
         if (validItems.length === 0) { toast.error('Add at least one item'); return }
+        // Validate no negative amounts
+        const hasInvalid = validItems.some(i => Number(i.quantity) < 1 || Number(i.unit_price) < 0)
+        if (hasInvalid) { toast.error('Quantities must be at least 1 and prices cannot be negative'); return }
+        if (discount > subtotal) { toast.error('Discount cannot exceed subtotal'); return }
+        if (tax < 0) { toast.error('Tax cannot be negative'); return }
         createInvoice.mutate({
             hospital_id: hospitalId,
             patient_id: fPatient,
@@ -92,6 +97,16 @@ export default function BillingPage() {
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
+
+    if (isError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load invoices</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
     }
 
     return (
@@ -127,16 +142,16 @@ export default function BillingPage() {
                                 {items.map((item, i) => (
                                     <div key={i} className="grid grid-cols-[1fr_0.5fr_0.6fr_0.6fr_auto] gap-2 items-end">
                                         <div className="space-y-1"><Label className="text-xs">Description</Label><Input placeholder="Root Canal" value={item.description} onChange={e => updateItem(i, 'description', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Qty</Label><Input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, 'quantity', parseInt(e.target.value) || 1)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Unit Price</Label><Input type="number" min={0} value={item.unit_price} onChange={e => updateItem(i, 'unit_price', parseFloat(e.target.value) || 0)} /></div>
+                                        <div className="space-y-1"><Label className="text-xs">Qty</Label><Input type="number" min={1} value={item.quantity} onChange={e => updateItem(i, 'quantity', Math.max(1, parseInt(e.target.value) || 1))} /></div>
+                                        <div className="space-y-1"><Label className="text-xs">Unit Price</Label><Input type="number" min={0} value={item.unit_price} onChange={e => updateItem(i, 'unit_price', Math.max(0, parseFloat(e.target.value) || 0))} /></div>
                                         <div className="space-y-1"><Label className="text-xs">Total</Label><Input readOnly value={`₹${item.total}`} className="bg-muted" /></div>
                                         <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setItems(prev => prev.filter((_, idx) => idx !== i))} disabled={items.length <= 1}><Trash2 className="w-4 h-4" /></Button>
                                     </div>
                                 ))}
                             </div>
                             <div className="grid grid-cols-3 gap-4">
-                                <div className="space-y-1"><Label className="text-xs">Tax (₹)</Label><Input type="number" value={fTax} onChange={e => setFTax(e.target.value)} /></div>
-                                <div className="space-y-1"><Label className="text-xs">Discount (₹)</Label><Input type="number" value={fDiscount} onChange={e => setFDiscount(e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-xs">Tax (₹)</Label><Input type="number" min={0} value={fTax} onChange={e => setFTax(e.target.value)} /></div>
+                                <div className="space-y-1"><Label className="text-xs">Discount (₹)</Label><Input type="number" min={0} value={fDiscount} onChange={e => setFDiscount(e.target.value)} /></div>
                                 <div className="space-y-1"><Label className="text-xs">Grand Total</Label><Input readOnly value={`₹${grandTotal}`} className="bg-muted font-bold" /></div>
                             </div>
                         </div>

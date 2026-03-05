@@ -67,6 +67,8 @@ function LoginForm() {
                 },
             })
             if (error) throw error
+            // If we're still on the page after 4 seconds (user cancelled popup), reset spinner
+            setTimeout(() => setIsGoogleLoading(false), 4000)
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : 'Failed to sign in with Google'
             toast.error(message)

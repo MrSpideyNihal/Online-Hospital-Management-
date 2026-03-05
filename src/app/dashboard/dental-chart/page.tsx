@@ -68,6 +68,10 @@ export default function DentalChartPage() {
     }, [toothConditions])
 
     const handleToothClick = (toothNum: number) => {
+        if (!selectedPatientId) {
+            toast.error('Please select a patient first')
+            return
+        }
         setSelectedTooth(toothNum)
         const existing = toothConditions.find(c => c.tooth_number === toothNum)
         if (existing) {
@@ -81,13 +85,17 @@ export default function DentalChartPage() {
 
     const handleSaveCondition = () => {
         if (selectedTooth === null) return
+        if (!selectedPatientId) {
+            toast.error('Please select a patient first')
+            return
+        }
         // Update local state immediately
         setToothConditions(prev => {
             const filtered = prev.filter(c => c.tooth_number !== selectedTooth)
             return [...filtered, { tooth_number: selectedTooth, condition: selectedCondition, notes }]
         })
-        // Persist to DB if patient selected
-        if (selectedPatientId && hospitalId) {
+        // Persist to DB
+        if (hospitalId) {
             saveDentalChart.mutate({
                 patient_id: selectedPatientId,
                 hospital_id: hospitalId,
@@ -99,7 +107,11 @@ export default function DentalChartPage() {
                 recorded_by: user?.id ?? null,
             }, {
                 onSuccess: () => toast.success(`Tooth #${selectedTooth} saved`),
-                onError: (e) => toast.error(e.message),
+                onError: (e) => {
+                    toast.error(e.message)
+                    // Revert local state on save failure
+                    setToothConditions(prev => prev.filter(c => c.tooth_number !== selectedTooth))
+                },
             })
         }
         setSelectedTooth(null)

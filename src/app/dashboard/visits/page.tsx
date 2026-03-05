@@ -28,7 +28,7 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
 export default function VisitsPage() {
     const { hospitalId } = useAuth()
     const today = new Date().toISOString().split('T')[0]
-    const { data: visits = [], isLoading } = useVisits(hospitalId, today)
+    const { data: visits = [], isLoading, isError } = useVisits(hospitalId, today)
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createVisit = useCreateVisit()
@@ -80,6 +80,16 @@ export default function VisitsPage() {
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
+
+    if (isError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load visits</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
     }
 
     return (

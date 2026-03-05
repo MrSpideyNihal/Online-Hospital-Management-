@@ -13,11 +13,11 @@ const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e'
 
 export default function ReportsPage() {
     const { hospitalId } = useAuth()
-    const { data: stats, isLoading: sLoading } = useDashboardStats(hospitalId)
+    const { data: stats, isLoading: sLoading, isError: sError } = useDashboardStats(hospitalId)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: appointments = [] } = useAppointments(hospitalId) as any
+    const { data: appointments = [], isError: aError } = useAppointments(hospitalId) as any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data: invoices = [] } = useInvoices(hospitalId) as any
+    const { data: invoices = [], isError: iError } = useInvoices(hospitalId) as any
 
     // Build service distribution from appointments
     const serviceMap = new Map<string, number>()
@@ -43,6 +43,16 @@ export default function ReportsPage() {
 
     if (sLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
+
+    if (sError || aError || iError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load report data</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
     }
 
     return (

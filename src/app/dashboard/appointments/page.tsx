@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/auth-context'
 import { useAppointments, useCreateAppointment, useUpdateAppointment, usePatients, useDoctors } from '@/lib/supabase/hooks'
+import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -36,7 +37,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 
 export default function AppointmentsPage() {
     const { hospitalId } = useAuth()
-    const { data: appointments = [], isLoading } = useAppointments(hospitalId)
+    const { data: appointments = [], isLoading, isError } = useAppointments(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createAppointment = useCreateAppointment()
@@ -66,23 +67,51 @@ export default function AppointmentsPage() {
 
     const resetForm = () => { setFPatient(''); setFDoctor(''); setFDate(''); setFTime(''); setFReason(''); setFNotes('') }
 
-    const handleCreate = () => {
+    const [isCreating, setIsCreating] = useState(false)
+
+    const handleCreate = async () => {
         if (!hospitalId || !fPatient || !fDoctor || !fDate || !fTime) {
             toast.error('Please fill all required fields'); return
         }
-        createAppointment.mutate({
-            hospital_id: hospitalId,
-            patient_id: fPatient,
-            doctor_id: fDoctor,
-            appointment_date: fDate,
-            appointment_time: fTime,
-            reason: fReason || null,
-            notes: fNotes || null,
-            status: 'scheduled',
-        }, {
-            onSuccess: () => { toast.success('Appointment booked'); setIsAddOpen(false); resetForm() },
-            onError: (e) => toast.error(e.message),
-        })
+        // Prevent booking in the past
+        const today = new Date().toISOString().split('T')[0]
+        if (fDate < today) {
+            toast.error('Cannot book appointments in the past'); return
+        }
+        // Check for double-booking (same doctor, same date+time)
+        setIsCreating(true)
+        try {
+            const supabase = createClient()
+            const { data: conflicts } = await supabase
+                .from('appointments')
+                .select('id')
+                .eq('doctor_id', fDoctor)
+                .eq('appointment_date', fDate)
+                .eq('appointment_time', fTime)
+                .not('status', 'eq', 'cancelled')
+                .limit(1)
+            if (conflicts && conflicts.length > 0) {
+                toast.error('This doctor already has an appointment at this date and time. Please choose a different slot.')
+                setIsCreating(false)
+                return
+            }
+            createAppointment.mutate({
+                hospital_id: hospitalId,
+                patient_id: fPatient,
+                doctor_id: fDoctor,
+                appointment_date: fDate,
+                appointment_time: fTime,
+                reason: fReason || null,
+                notes: fNotes || null,
+                status: 'scheduled',
+            }, {
+                onSuccess: () => { toast.success('Appointment booked'); setIsAddOpen(false); resetForm(); setIsCreating(false) },
+                onError: (e) => { toast.error(e.message); setIsCreating(false) },
+            })
+        } catch {
+            toast.error('Failed to check availability. Please try again.')
+            setIsCreating(false)
+        }
     }
 
     const handleStatusChange = (id: string, status: string) => {
@@ -107,6 +136,16 @@ export default function AppointmentsPage() {
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
+
+    if (isError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load appointments</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
     }
 
     return (
@@ -143,7 +182,7 @@ export default function AppointmentsPage() {
                                 </select>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5"><Label>Date *</Label><Input type="date" value={fDate} onChange={e => setFDate(e.target.value)} /></div>
+                                <div className="space-y-1.5"><Label>Date *</Label><Input type="date" min={new Date().toISOString().split('T')[0]} value={fDate} onChange={e => setFDate(e.target.value)} /></div>
                                 <div className="space-y-1.5"><Label>Time *</Label><Input type="time" value={fTime} onChange={e => setFTime(e.target.value)} /></div>
                             </div>
                             <div className="space-y-1.5">
@@ -159,8 +198,8 @@ export default function AppointmentsPage() {
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreate} disabled={createAppointment.isPending}>
-                                {createAppointment.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Booking...</> : 'Book Appointment'}
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreate} disabled={isCreating || createAppointment.isPending}>
+                                {(isCreating || createAppointment.isPending) ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Booking...</> : 'Book Appointment'}
                             </Button>
                         </DialogFooter>
                     </DialogContent>

@@ -45,7 +45,7 @@ import type { Patient } from '@/types/database'
 
 export default function PatientsPage() {
     const { hospitalId } = useAuth()
-    const { data: patients = [], isLoading } = usePatients(hospitalId)
+    const { data: patients = [], isLoading, isError } = usePatients(hospitalId)
     const createPatient = useCreatePatient()
     const deletePatient = useDeletePatient()
 
@@ -88,10 +88,11 @@ export default function PatientsPage() {
     }
 
     const handleCreatePatient = () => {
-        if (!hospitalId || !formName.trim()) {
-            toast.error('Please fill in required fields')
-            return
-        }
+        if (!hospitalId) return
+        if (!formName.trim()) { toast.error('Patient name is required'); return }
+        if (formName.trim().length > 200) { toast.error('Name is too long (max 200 characters)'); return }
+        if (formEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { toast.error('Please enter a valid email'); return }
+        if (formDob && formDob > new Date().toISOString().split('T')[0]) { toast.error('Date of birth cannot be in the future'); return }
         createPatient.mutate({
             hospital_id: hospitalId,
             full_name: formName.trim(),
@@ -131,7 +132,11 @@ export default function PatientsPage() {
     }
 
     const handleEditPatient = () => {
-        if (!editingPatient || !formName.trim()) { toast.error('Name is required'); return }
+        if (!editingPatient) return
+        if (!formName.trim()) { toast.error('Patient name is required'); return }
+        if (formName.trim().length > 200) { toast.error('Name is too long (max 200 characters)'); return }
+        if (formEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { toast.error('Please enter a valid email'); return }
+        if (formDob && formDob > new Date().toISOString().split('T')[0]) { toast.error('Date of birth cannot be in the future'); return }
         updatePatient.mutate({
             id: editingPatient.id,
             full_name: formName.trim(),
@@ -182,6 +187,16 @@ export default function PatientsPage() {
         )
     }
 
+    if (isError) {
+        return (
+            <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3">
+                <p className="text-destructive font-medium">Failed to load patients</p>
+                <p className="text-sm text-muted-foreground">Please check your connection and refresh the page.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        )
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -208,7 +223,7 @@ export default function PatientsPage() {
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
                                 <div className="space-y-1.5">
                                     <Label htmlFor="full_name">Full Name *</Label>
-                                    <Input id="full_name" placeholder="Enter full name" value={formName} onChange={(e) => setFormName(e.target.value)} />
+                                    <Input id="full_name" placeholder="Enter full name" maxLength={200} value={formName} onChange={(e) => setFormName(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="email">Email</Label>
@@ -220,7 +235,7 @@ export default function PatientsPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="dob">Date of Birth</Label>
-                                    <Input id="dob" type="date" value={formDob} onChange={(e) => setFormDob(e.target.value)} />
+                                    <Input id="dob" type="date" max={new Date().toISOString().split('T')[0]} value={formDob} onChange={(e) => setFormDob(e.target.value)} />
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label htmlFor="gender">Gender</Label>
