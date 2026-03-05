@@ -1,5 +1,5 @@
 [build]
-  command = "rm -rf node_modules/.cache .next && npm install --legacy-peer-deps && npm run build"
+  command = "npm install --legacy-peer-deps && npm run build"
   publish = ".next"
 
 [build.environment]
