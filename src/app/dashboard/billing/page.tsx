@@ -166,7 +166,7 @@ export default function BillingPage() {
             </div>
 
             <div className="grid sm:grid-cols-3 gap-4">
-                <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total Revenue (Month)</p><p className="text-3xl font-bold mt-1 text-green-600">{formatCurrency(totalRevenue)}</p></CardContent></Card>
+                <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total Revenue</p><p className="text-3xl font-bold mt-1 text-green-600">{formatCurrency(totalRevenue)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Pending Payments</p><p className="text-3xl font-bold mt-1 text-amber-600">{formatCurrency(pendingAmount)}</p></CardContent></Card>
                 <Card className="border-border/50"><CardContent className="p-5"><p className="text-sm text-muted-foreground">Total Invoices</p><p className="text-3xl font-bold mt-1">{invoices.length}</p></CardContent></Card>
             </div>

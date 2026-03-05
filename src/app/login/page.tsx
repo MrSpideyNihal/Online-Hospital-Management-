@@ -14,7 +14,9 @@ function LoginForm() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const isHospitalRegistration = searchParams.get('type') === 'hospital'
-    const redirect = searchParams.get('redirect') || '/dashboard'
+    const rawRedirect = searchParams.get('redirect') || '/dashboard'
+    // Prevent open redirect: only allow relative paths starting with /
+    const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
     const authError = searchParams.get('error')
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const supabase = createClient()

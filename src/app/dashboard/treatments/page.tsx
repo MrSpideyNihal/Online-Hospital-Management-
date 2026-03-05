@@ -67,6 +67,10 @@ export default function TreatmentsPage() {
             toast.error('Estimated cost cannot be negative')
             return
         }
+        if (fTooth && (parseInt(fTooth) < 1 || parseInt(fTooth) > 32)) {
+            toast.error('Tooth number must be between 1 and 32')
+            return
+        }
         createTreatment.mutate({
             hospital_id: hospitalId,
             patient_id: fPatient,

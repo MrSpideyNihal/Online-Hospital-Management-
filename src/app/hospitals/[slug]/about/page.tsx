@@ -85,7 +85,13 @@ export default function HospitalAboutPage() {
                             </CardContent>
                         </Card>
                         <Card className="border-border/50 overflow-hidden">
-                            {hospital.map_embed_url ? (
+                            {hospital.map_embed_url && (() => {
+                                try {
+                                    const url = new URL(hospital.map_embed_url)
+                                    const allowed = ['www.google.com', 'maps.google.com', 'google.com', 'www.google.co.in', 'maps.googleapis.com']
+                                    return allowed.includes(url.hostname)
+                                } catch { return false }
+                            })() ? (
                                 <iframe
                                     src={hospital.map_embed_url}
                                     className="w-full h-full min-h-[300px]"
@@ -118,7 +124,7 @@ export default function HospitalAboutPage() {
                             <Card key={doc.id} className="border-border/50 text-center">
                                 <CardContent className="p-6">
                                     <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center text-xl font-bold text-white" style={{ backgroundColor: pc }}>
-                                        {doc.full_name.split(' ').slice(1).map(n => n[0]).join('')}
+                                        {doc.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                                     </div>
                                     <h3 className="font-semibold mt-3">{doc.full_name}</h3>
                                     <p className="text-sm" style={{ color: pc }}>{doc.specialization || 'General'}</p>

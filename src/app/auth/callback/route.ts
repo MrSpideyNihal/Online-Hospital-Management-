@@ -35,7 +35,9 @@ function getBaseUrl(requestUrl: string): string {
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
-    const redirect = searchParams.get('redirect') || '/dashboard'
+    const rawRedirect = searchParams.get('redirect') || '/dashboard'
+    // Prevent open redirect: only allow relative paths starting with /
+    const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
     const registrationType = searchParams.get('type') // 'hospital' for hospital registration
     const baseUrl = getBaseUrl(request.url)
 

@@ -50,12 +50,19 @@ export default function DashboardPage() {
     const recentAppointments = (appointments || []).slice(0, 5)
     const opdQueue = (visits || []).filter((v: any) => v.status === 'waiting' || v.status === 'in_progress').slice(0, 5)
 
+    const getGreeting = () => {
+        const hour = new Date().getHours()
+        if (hour < 12) return 'Good Morning'
+        if (hour < 17) return 'Good Afternoon'
+        return 'Good Evening'
+    }
+
     return (
         <div className="space-y-6">
             {/* Welcome */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Good Morning! 👋</h1>
+                    <h1 className="text-2xl font-bold">{getGreeting()}! 👋</h1>
                     <p className="text-muted-foreground">Here&apos;s what&apos;s happening at your hospital today.</p>
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

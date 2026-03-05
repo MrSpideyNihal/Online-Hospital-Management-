@@ -145,7 +145,7 @@ export default function HospitalPublicPage() {
                                 <CardContent className="pt-0 -mt-10 pb-6">
                                     <div className="w-20 h-20 rounded-full border-4 border-card mx-auto flex items-center justify-center text-2xl font-bold text-white"
                                         style={{ backgroundColor: pc }}>
-                                        {doc.full_name.split(' ').slice(1).map(n => n[0]).join('')}
+                                        {doc.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
                                     </div>
                                     <h3 className="font-semibold mt-3">{doc.full_name}</h3>
                                     <p className="text-sm" style={{ color: pc }}>{doc.specialization || 'General'}</p>

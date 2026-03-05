@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Bell, Plus, Loader2, CheckCircle } from 'lucide-react'
+import { Bell, Loader2, CheckCircle } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useNotifications, useMarkNotificationRead } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'

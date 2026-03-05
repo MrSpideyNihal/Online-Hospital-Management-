@@ -65,11 +65,11 @@ export default function ReportsPage() {
                 <Button variant="outline" size="sm" onClick={() => {
                     const headers = ['Service', 'Count']
                     const rows = serviceData.map(s => [s.name, String(s.value)])
-                    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
-                    const blob = new Blob([csv], { type: 'text/csv' })
+                    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+                    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
                     const url = URL.createObjectURL(blob)
                     const a = document.createElement('a'); a.href = url; a.download = 'report.csv'; a.click()
-                    URL.revokeObjectURL(url)
+                    setTimeout(() => URL.revokeObjectURL(url), 1000)
                     toast.success('Report exported')
                 }}><Download className="w-4 h-4 mr-1.5" /> Export Report</Button>
             </div>

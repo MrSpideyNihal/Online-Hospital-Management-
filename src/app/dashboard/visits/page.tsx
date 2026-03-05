@@ -50,7 +50,13 @@ export default function VisitsPage() {
 
     const handleCheckIn = () => {
         if (!hospitalId || !fPatient || !fDoctor) { toast.error('Patient and Doctor are required'); return }
-        const nextQueue = visits.length + 1
+        // Validate vitals
+        if (fTemp && (isNaN(Number(fTemp)) || Number(fTemp) < 90 || Number(fTemp) > 110)) { toast.error('Temperature must be between 90-110°F'); return }
+        if (fWeight && (isNaN(Number(fWeight)) || Number(fWeight) < 1 || Number(fWeight) > 500)) { toast.error('Weight must be between 1-500 kg'); return }
+        if (fBp && !/^\d{2,3}\/\d{2,3}$/.test(fBp)) { toast.error('BP must be in format like 120/80'); return }
+        // Compute next queue number from max existing queue number (not array length)
+        const maxQueue = visits.reduce((max: number, v: any) => Math.max(max, v.queue_number || 0), 0)
+        const nextQueue = maxQueue + 1
         createVisit.mutate({
             hospital_id: hospitalId,
             patient_id: fPatient,

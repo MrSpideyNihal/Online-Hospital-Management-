@@ -10,6 +10,16 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useSearchHospitals } from '@/lib/supabase/hooks'
 
+// Debounce hook to avoid firing a query on every keystroke
+function useDebouncedValue<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay)
+    return () => clearTimeout(timer)
+  }, [value, delay])
+  return debounced
+}
+
 const FEATURED_SERVICES = [
   { name: 'Root Canal', icon: '🦷', color: 'from-blue-500 to-cyan-500' },
   { name: 'Dental Implants', icon: '🔩', color: 'from-purple-500 to-pink-500' },
@@ -35,7 +45,8 @@ export default function HomePage() {
   useEffect(() => { setMounted(true) }, [])
 
   // Fetch live approved hospitals based on search; default shows all approved when query=""
-  const { data: hospitals = [], isError } = useSearchHospitals(searchQuery || '', selectedCity || undefined)
+  const debouncedQuery = useDebouncedValue(searchQuery, 350)
+  const { data: hospitals = [], isError } = useSearchHospitals(debouncedQuery || '', selectedCity || undefined)
 
   // Client-side fallback filter for empty query
   const filteredHospitals = isError ? [] : (searchQuery || selectedCity
@@ -166,14 +177,14 @@ export default function HomePage() {
       </section>
 
       {/* Hospital Results */}
-      <section className="py-16 px-4">
+      <section id="hospitals-section" className="py-16 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-3xl font-bold">Top Dental Hospitals</h2>
               <p className="text-muted-foreground mt-1">Verified and rated by thousands of patients</p>
             </div>
-            <Button variant="ghost" className="hidden sm:flex">
+            <Button variant="ghost" className="hidden sm:flex" onClick={() => document.getElementById('hospitals-section')?.scrollIntoView({ behavior: 'smooth' })}>
               View All <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </div>

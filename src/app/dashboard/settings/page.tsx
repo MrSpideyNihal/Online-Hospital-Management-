@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import {
-    Building2, Palette, MapPin, Globe, QrCode, Save, Upload, Loader2, ExternalLink,
+    Building2, Palette, MapPin, QrCode, Save, Upload, Loader2, ExternalLink,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useUpdateHospital } from '@/lib/supabase/hooks'
@@ -60,12 +60,16 @@ export default function SettingsPage() {
         if ((!section || section === 'general') && email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
             toast.error('Please enter a valid email'); return
         }
+        if ((!section || section === 'location') && pincode && !/^\d{6}$/.test(pincode)) {
+            toast.error('Pincode must be a 6-digit number'); return
+        }
         // Validate map embed URL for security (only Google Maps allowed)
         if ((!section || section === 'location') && mapEmbed) {
             try {
                 const embedUrl = new URL(mapEmbed)
-                if (!embedUrl.hostname.endsWith('google.com')) {
-                    toast.error('Map embed URL must be from google.com'); return
+                const allowedHosts = ['www.google.com', 'maps.google.com', 'google.com', 'www.google.co.in', 'maps.googleapis.com']
+                if (!allowedHosts.includes(embedUrl.hostname)) {
+                    toast.error('Map embed URL must be from Google Maps (google.com)'); return
                 }
             } catch {
                 toast.error('Invalid map embed URL'); return
@@ -159,7 +163,7 @@ export default function SettingsPage() {
                                         <Upload className="w-6 h-6 text-muted-foreground" />
                                     </div>
                                     <div>
-                                        <Button variant="outline" size="sm"><Upload className="w-4 h-4 mr-1.5" /> Upload Logo</Button>
+                                        <Button variant="outline" size="sm" disabled><Upload className="w-4 h-4 mr-1.5" /> Upload Logo (Coming Soon)</Button>
                                         <p className="text-xs text-muted-foreground mt-1">PNG, JPG up to 2MB. Recommended 200x200px.</p>
                                     </div>
                                 </div>
@@ -171,7 +175,7 @@ export default function SettingsPage() {
                                 <div className="w-full h-32 rounded-xl border-2 border-dashed flex items-center justify-center bg-muted/50">
                                     <div className="text-center">
                                         <Upload className="w-6 h-6 text-muted-foreground mx-auto mb-1" />
-                                        <p className="text-xs text-muted-foreground">Upload banner (1200x400px recommended)</p>
+                                        <p className="text-xs text-muted-foreground">Upload banner — Coming Soon</p>
                                     </div>
                                 </div>
                             </div>
@@ -236,7 +240,7 @@ export default function SettingsPage() {
                                 <Input value={mapEmbed} onChange={(e) => setMapEmbed(e.target.value)} placeholder="https://www.google.com/maps/embed?pb=..." />
                                 <p className="text-xs text-muted-foreground">Paste the embed URL from Google Maps share dialog.</p>
                             </div>
-                            {mapEmbed && (() => { try { return new URL(mapEmbed).hostname.endsWith('google.com') } catch { return false } })() && (
+                            {mapEmbed && (() => { try { const u = new URL(mapEmbed); const allowed = ['www.google.com', 'maps.google.com', 'google.com', 'www.google.co.in', 'maps.googleapis.com']; return allowed.includes(u.hostname) } catch { return false } })() && (
                                 <div className="rounded-xl overflow-hidden border">
                                     <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
                                 </div>

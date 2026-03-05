@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import {
     Search, UserPlus, MoreHorizontal, Edit, Trash2, Eye,
-    Phone, Mail, MapPin, Filter, Download, ChevronLeft, ChevronRight, Loader2, QrCode,
+    Phone, Mail, MapPin, Download, ChevronLeft, ChevronRight, Loader2, QrCode,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { formatDate } from '@/lib/utils'
@@ -93,6 +93,7 @@ export default function PatientsPage() {
         if (formName.trim().length > 200) { toast.error('Name is too long (max 200 characters)'); return }
         if (formEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { toast.error('Please enter a valid email'); return }
         if (formDob && formDob > new Date().toISOString().split('T')[0]) { toast.error('Date of birth cannot be in the future'); return }
+        if (formPhone && !/^\+?[\d\s-]{7,15}$/.test(formPhone)) { toast.error('Please enter a valid phone number'); return }
         createPatient.mutate({
             hospital_id: hospitalId,
             full_name: formName.trim(),
@@ -137,6 +138,7 @@ export default function PatientsPage() {
         if (formName.trim().length > 200) { toast.error('Name is too long (max 200 characters)'); return }
         if (formEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { toast.error('Please enter a valid email'); return }
         if (formDob && formDob > new Date().toISOString().split('T')[0]) { toast.error('Date of birth cannot be in the future'); return }
+        if (formPhone && !/^\+?[\d\s-]{7,15}$/.test(formPhone)) { toast.error('Please enter a valid phone number'); return }
         updatePatient.mutate({
             id: editingPatient.id,
             full_name: formName.trim(),
@@ -165,10 +167,10 @@ export default function PatientsPage() {
             p.gender || '', p.date_of_birth || '', p.blood_group || '', p.city || '',
         ])
         const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
-        const blob = new Blob([csv], { type: 'text/csv' })
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a'); a.href = url; a.download = 'patients.csv'; a.click()
-        URL.revokeObjectURL(url)
+        setTimeout(() => URL.revokeObjectURL(url), 1000)
         toast.success('Exported ' + filtered.length + ' patients')
     }
 
@@ -329,9 +331,13 @@ export default function PatientsPage() {
                             </TableHeader>
                             <TableBody>
                                 {filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((patient) => {
-                                    const age = patient.date_of_birth
-                                        ? new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()
-                                        : null
+                                    let age: number | null = null
+                                    if (patient.date_of_birth) {
+                                        const dob = new Date(patient.date_of_birth)
+                                        const now = new Date()
+                                        age = now.getFullYear() - dob.getFullYear()
+                                        if (now.getMonth() < dob.getMonth() || (now.getMonth() === dob.getMonth() && now.getDate() < dob.getDate())) age--
+                                    }
                                     return (
                                         <TableRow key={patient.id} className="cursor-pointer hover:bg-muted/50">
                                             <TableCell className="font-mono text-xs">{patient.patient_id_number}</TableCell>

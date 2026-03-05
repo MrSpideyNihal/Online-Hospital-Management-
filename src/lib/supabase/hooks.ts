@@ -312,7 +312,7 @@ export function useSaveDentalChartRecord() {
         mutationFn: async (record: Omit<DentalChart, 'id' | 'recorded_at'>) => {
             const { data, error } = await supabase
                 .from('dental_charts')
-                .insert(record)
+                .upsert(record, { onConflict: 'patient_id,tooth_number' })
                 .select()
                 .single()
             if (error) throw error
@@ -511,8 +511,10 @@ export function useSearchHospitals(searchQuery: string, city?: string) {
                 .eq('status', 'approved')
                 .order('name')
 
-            if (searchQuery) q = q.ilike('name', `%${searchQuery}%`)
-            if (city) q = q.ilike('city', `%${city}%`)
+            // Escape ilike wildcards to prevent injection
+            const esc = (s: string) => s.replace(/[%_\\]/g, '\\$&')
+            if (searchQuery) q = q.ilike('name', `%${esc(searchQuery)}%`)
+            if (city) q = q.ilike('city', `%${esc(city)}%`)
 
             const { data, error } = await q
             if (error) {
@@ -736,7 +738,7 @@ export function useDashboardStats(hospitalId: string | null) {
             }
         },
         enabled: !!hospitalId,
-        refetchInterval: 30000,
+        refetchInterval: 60000,
     })
 }
 

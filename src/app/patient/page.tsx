@@ -21,29 +21,19 @@ export default function PatientDashboard() {
         queryFn: async () => {
             if (!user) return []
             // Look up patient records linked to this user
-            const { data, error } = await supabase
+            const { data: patients } = await supabase
+                .from('patients')
+                .select('id')
+                .eq('user_id', user.id)
+            if (!patients?.length) return []
+            const patientIds = patients.map((p: { id: string }) => p.id)
+            const { data: appts } = await supabase
                 .from('appointments')
                 .select('*, patients:patient_id(full_name), doctors:doctor_id(full_name), hospitals:hospital_id(name)')
-                .or(`created_by.eq.${user.id}`)
+                .in('patient_id', patientIds)
                 .order('appointment_date', { ascending: false })
                 .limit(10)
-            if (error) {
-                // Fallback: try via patients table
-                const { data: patients } = await supabase
-                    .from('patients')
-                    .select('id')
-                    .eq('user_id', user.id)
-                if (!patients?.length) return []
-                const patientIds = patients.map((p: { id: string }) => p.id)
-                const { data: appts } = await supabase
-                    .from('appointments')
-                    .select('*, patients:patient_id(full_name), doctors:doctor_id(full_name)')
-                    .in('patient_id', patientIds)
-                    .order('appointment_date', { ascending: false })
-                    .limit(10)
-                return appts || []
-            }
-            return data || []
+            return appts || []
         },
         enabled: !!user,
     })
