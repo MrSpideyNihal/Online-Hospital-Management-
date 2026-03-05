@@ -60,6 +60,11 @@ export async function middleware(request: NextRequest) {
         }
     }
 
+    // Prevent browsers/CDN from caching HTML pages (stale chunk 404s after deploy)
+    supabaseResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    supabaseResponse.headers.set('Pragma', 'no-cache')
+    supabaseResponse.headers.set('Expires', '0')
+
     return supabaseResponse
 }
 

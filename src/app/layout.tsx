@@ -27,7 +27,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var key='chunk-reload';
+                var key='__chunk_reload';
                 var reloaded=sessionStorage.getItem(key);
                 function doReload(){
                   if(!reloaded){
@@ -37,12 +37,16 @@ export default function RootLayout({
                 }
                 window.addEventListener('error',function(e){
                   var m=e.message||'';
-                  if(m.indexOf('Loading chunk')!==-1||m.indexOf('ChunkLoadError')!==-1||m.indexOf('Loading CSS chunk')!==-1)doReload();
-                  if(e.target&&(e.target.tagName==='SCRIPT'||e.target.tagName==='LINK')&&e.target.src&&e.target.src.indexOf('/_next/')!==-1)doReload();
+                  if(m.indexOf('Loading chunk')!==-1||m.indexOf('ChunkLoadError')!==-1||m.indexOf('Loading CSS chunk')!==-1||m.indexOf('MIME type')!==-1)doReload();
+                  var t=e.target;
+                  if(t&&(t.tagName==='SCRIPT'||t.tagName==='LINK')){
+                    var u=t.src||t.href||'';
+                    if(u.indexOf('/_next/')!==-1)doReload();
+                  }
                 },true);
                 window.addEventListener('unhandledrejection',function(e){
                   var r=e.reason;
-                  if(r&&(r.name==='ChunkLoadError'||(r.message&&r.message.indexOf('Loading chunk')!==-1)))doReload();
+                  if(r&&(r.name==='ChunkLoadError'||(r.message&&(r.message.indexOf('Loading chunk')!==-1||r.message.indexOf('Failed to fetch')!==-1))))doReload();
                 });
                 if(reloaded)sessionStorage.removeItem(key);
               })();
