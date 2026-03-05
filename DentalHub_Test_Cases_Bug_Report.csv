@@ -1,0 +1,228 @@
+Test Case ID,Module / Feature,Test Scenario / Title,Test Objective / Purpose,Preconditions,Test Data / Inputs,Steps to Reproduce / Steps to Execute,Expected Result,Actual Result,Status,Severity,Priority,Bug ID,Bug Description,Steps to Reproduce Bug,Actual Result (Bug),Expected Result (Bug),Environment / Operating System,Browser / App Version,Author / Tester Name,Date Tested,Fixed in Build / Release Version,Attachment / Logs / Screenshot,Comments / Notes
+"LEGEND","--- HOW TO USE THIS SHEET ---","Each row = one test case. Fill columns A–X for every test.","Severity: Critical = app crashes or patient data is lost; Major = feature is broken but there is a workaround; Minor = small issue with low impact on daily use; Trivial/Cosmetic = just a typo or color mismatch.","Priority: P0 = must fix before go-live (blocks patient care); P1 = fix soon — high impact; P2 = fix when possible — medium impact; P3 = fix later — low impact.","Status: Not Tested = not started; Pass = works as expected; Fail = something went wrong; Blocked = cannot test because something else is broken; N/A = does not apply to this environment.","Write steps as numbered instructions like: 1. Open the Login page, 2. Click the Google login button, etc. Write as if explaining to someone who has never used a computer before.","Describe exactly what the user should see if the app works correctly.","Leave blank before testing. Fill in what actually happened after you test.","Use dropdown: Not Tested / Pass / Fail / Blocked / N/A","See Severity legend","See Priority legend","Only fill if Status = Fail. Use format BUG-001, BUG-002, etc.","Write a simple sentence about what went wrong — avoid technical jargon (e.g. say 'the page went blank' instead of 'null reference error').","Copy from column G if same, or write adjusted steps if needed.","Same as Actual Result (column I) when test fails.","Same as Expected Result (column H) when test fails.","Example: Windows 11, macOS Ventura, Android 14, iOS 18","Example: Chrome 132, Safari 18, DentalHub v1.0","Your name","Date you tested (YYYY-MM-DD)","Fill after bug is fixed, e.g. v1.2.3","Attach screenshot, video link, or paste the error message you saw on screen","Any extra notes, re-test results, or related requirements"
+"INSTRUCTIONS","--- TIPS FOR NON-TECHNICAL TESTERS ---","Filter by Status = Fail to see all bugs quickly. Filter by Module to test one area at a time.","Color code rows in Excel: Green = Pass, Red = Fail, Yellow = Blocked, Grey = Not Tested. This makes it easy to see progress at a glance.","User Roles in DentalHub: Super Admin (manages all hospitals), Hospital Admin (manages one hospital), Doctor, Receptionist, Patient. Each role has different access rights.","Modules: Login (Google OAuth), Landing Page, Hospital Dashboard, Patients, Doctors, Appointments, Visits, Dental Chart, Treatments, Prescriptions (with PDF), Billing/Invoices, Reports, Settings, Admin Panel (hospital approvals/subscriptions), Patient Portal.","","","","","","","","","","","","","","","","","",""
+"LOGIN-001","Login / Authentication","Successful login with Google account","Verify that a registered user can sign in with their Google account and be redirected to the correct dashboard based on their role.","The DentalHub login page is open in the browser. The user already has a Google account linked to a hospital_admin or doctor profile.","Google Account: testdoctor@gmail.com (role: hospital_admin)","1. Open the DentalHub app in your browser (e.g. https://dentizhub.netlify.app).
+2. Click the 'Login' or 'Get Started' button on the landing page.
+3. On the Login page, click the 'Continue with Google' button.
+4. In the Google popup, select or enter your Google account: testdoctor@gmail.com.
+5. Allow any permissions Google asks for.
+6. Wait for the page to load after signing in.","The app should redirect you to the Hospital Dashboard (/dashboard) page. You should see stats like Total Patients, Today's Appointments, Today's Visits, and Total Doctors. Your name should appear in the sidebar or header.","Dashboard loaded successfully. Stats cards visible (Total Patients, Today's Appointments, etc.). User name shown in sidebar.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Role-based redirect works correctly — hospital_admin goes to /dashboard."
+"LOGIN-002","Login / Authentication","Login redirects Super Admin to Admin Panel","Verify that a Super Admin user is automatically redirected to the Admin Dashboard instead of the hospital dashboard.","Login page is open. User's Google account is linked to a super_admin profile.","Google Account: superadmin@dentalhub.com (role: super_admin)","1. Open the DentalHub login page.
+2. Click 'Continue with Google'.
+3. Sign in with the super admin Google account.
+4. Wait for the page to load.","The app should redirect you to the Super Admin Dashboard (/admin) page. You should see stats like Total Hospitals, Pending Approvals, Frozen Hospitals, and Expiring Subscriptions.","Redirected to /admin. Super Admin Dashboard displayed with all stats.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Super admin role detection works."
+"LOGIN-003","Login / Authentication","Login redirects Patient to Patient Portal","Verify that a patient user is redirected to the Patient Dashboard instead of the hospital staff dashboard.","Login page is open. User has a Google account linked to a patient profile.","Google Account: patient@gmail.com (role: patient)","1. Open the DentalHub login page.
+2. Click 'Continue with Google'.
+3. Sign in with the patient Google account.
+4. Wait for the page to load.","The app should redirect to the Patient Dashboard (/patient). The patient should see their upcoming appointments, recent visit history, and a button to book new appointments.","Redirected to /patient. Patient dashboard shows upcoming appointments and medical history section.","Pass","","","","","","","","Android 14 (Samsung Galaxy S24)","Chrome Mobile 132","Nihal","2026-03-05","","","Patient portal works on mobile browser."
+"LOGIN-004","Login / Authentication","Already logged-in user cannot see login page","Verify that when a user is already signed in, visiting the login page redirects them to their dashboard automatically.","User is already logged in as hospital_admin.","No additional input needed. Just try to visit /login.","1. Make sure you are already logged in (you can see the Dashboard).
+2. In the browser address bar, manually type the login URL (e.g. https://dentizhub.netlify.app/login) and press Enter.
+3. Watch what happens.","The app should automatically redirect you back to your dashboard. You should NOT see the login page if you are already signed in.","Redirected back to /dashboard automatically. Login page was not shown.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Auth redirect guard works."
+"LOGIN-005","Login / Authentication","Google login error shows friendly message","Verify that if Google login fails for any reason, the app shows a clear and helpful error message instead of crashing.","Login page is open. Simulate a login failure (e.g. cancel the Google popup).","Action: Cancel the Google sign-in popup window.","1. Open the Login page.
+2. Click 'Continue with Google'.
+3. When the Google sign-in popup appears, click the X button to close/cancel it.
+4. Look at the Login page for any error message.","The app should show a toast notification or error message like 'Authentication failed. Please try again.' The login page should remain usable — no crash, no blank screen.","No error message appeared after canceling. The page stayed on the login screen but the button was stuck showing a spinner that never stopped.","Fail","Major","P1","BUG-001","When a user cancels the Google sign-in popup, the 'Continue with Google' button gets stuck in a loading/spinner state and never recovers. The user has to refresh the entire page to try logging in again.","1. Open Login page.
+2. Click 'Continue with Google'.
+3. Cancel/close the Google popup.
+4. Observe the button — it stays in loading state forever.","Button shows spinning loader indefinitely. No error message. Button becomes unusable without page refresh.","Button should return to normal state after popup is canceled. An error toast should appear saying 'Sign in was cancelled. Please try again.'","Windows 11","Chrome 132","Nihal","2026-03-05","","Screenshot: login_spinner_stuck.png","The setIsGoogleLoading(false) may not be called when user cancels OAuth popup."
+"PAT-001","Patients","Add a new patient with all required fields","Verify that a hospital admin or receptionist can register a new patient with complete details.","User is logged in as hospital_admin. The Patients page (/dashboard/patients) is open.","Name: Rajesh Kumar | Email: rajesh@example.com | Phone: 9876543210 | Date of Birth: 1990-05-15 | Gender: Male | Blood Group: B+ | Address: 42 MG Road, Bangalore | Emergency Contact: Priya Kumar, 9876543211 | Allergies: Penicillin | Medical History: Diabetes Type 2","1. Go to the Patients page from the sidebar menu.
+2. Click the 'Add Patient' or '+' button.
+3. Fill in: Name: Rajesh Kumar
+4. Email: rajesh@example.com
+5. Phone: 9876543210
+6. Date of Birth: 1990-05-15
+7. Gender: Male
+8. Blood Group: B+
+9. Address: 42 MG Road, Bangalore
+10. Emergency Contact Name: Priya Kumar
+11. Emergency Contact Phone: 9876543211
+12. Allergies: Penicillin
+13. Medical History: Diabetes Type 2
+14. Click 'Save' or 'Add Patient'.","A success toast should appear: 'Patient added successfully.' The new patient 'Rajesh Kumar' should appear in the patients list with all details saved correctly. A QR code may be auto-generated.","Patient added. Toast: 'Patient created!' Patient appears in the list with correct details.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","All fields saved correctly including allergies and emergency contact."
+"PAT-002","Patients","Search for patient by name","Verify that the search/filter on the patients list works correctly.","User is logged in. Patients page is open. At least 5 patients exist in the system.","Search term: Rajesh","1. Go to the Patients page.
+2. Find the search bar at the top of the patient list.
+3. Type: Rajesh
+4. Observe the patient list below.","The list should filter to show only patients whose name contains 'Rajesh'. Other patients should be hidden. The filter should happen as you type (instant filtering).","List filtered correctly. Only 'Rajesh Kumar' is shown.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"PAT-003","Patients","Delete a patient record","Verify that a hospital admin can delete a patient and the record is permanently removed.","Patients page is open. A test patient 'Delete Me Test' exists.","Patient to delete: Delete Me Test","1. Go to Patients page.
+2. Find 'Delete Me Test' in the list.
+3. Click the Delete button (trash icon) next to the patient.
+4. If a confirmation popup appears, click 'Yes, Delete' or 'Confirm'.
+5. Check if the patient is removed from the list.","The patient should be removed from the list. A success message should appear. The patient should no longer appear in search results or in any dropdown (appointments, visits, etc.).","Patient deleted successfully. No longer appears in list or dropdowns.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Confirm dialog appeared before deletion — good safety measure."
+"DOC-001","Doctors","Add a new doctor to the hospital","Verify that a hospital admin can add a new doctor with their professional details.","User is logged in as hospital_admin. Doctors page (/dashboard/doctors) is open.","Name: Dr. Anjali Sharma | Email: anjali@hospital.com | Phone: 9123456789 | Specialization: Orthodontist | Qualification: BDS, MDS | Experience: 8 years | License: DEN-KA-2018-4521 | Consultation Fee: ₹500","1. Go to Doctors page from sidebar.
+2. Click 'Add Doctor' or '+' button.
+3. Fill in all doctor details as listed in Test Data.
+4. Click 'Save' or 'Add Doctor'.","Doctor should be added successfully. A toast message should confirm. 'Dr. Anjali Sharma' should appear in the doctors list with Specialization: Orthodontist, Fee: ₹500.","Doctor added. Toast shown. Doctor appears in list with correct details.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"DOC-002","Doctors","Add doctor with missing required fields","Verify that the form does not submit when mandatory fields (like name) are left empty.","Doctors page is open with the 'Add Doctor' form visible.","Name: (empty) | All other fields: empty","1. Go to Doctors page.
+2. Click 'Add Doctor'.
+3. Leave all fields empty — do NOT type anything.
+4. Click 'Save'.","The form should show validation messages (e.g. 'Doctor name is required'). The form should NOT submit. No doctor should be added to the list.","The form submitted with empty fields and created a doctor record with a blank name. The doctor appears in the list as an empty card.","Fail","Major","P1","BUG-002","The 'Add Doctor' form has no client-side validation. It allows submission with completely empty fields, creating a doctor record with no name, no specialization, and no contact info. This creates garbage data in the system.","1. Go to Doctors page.
+2. Click 'Add Doctor'.
+3. Leave ALL fields empty.
+4. Click 'Save'.
+5. See the blank doctor card appear in the list.","Form submitted successfully with empty fields. A blank doctor record was created.","Form should show validation errors like 'Doctor name is required' and prevent submission until required fields are filled.","Windows 11","Chrome 132","Nihal","2026-03-05","","Screenshot: doctor_blank_record.png","Needs form validation — at minimum require name, specialization, and phone."
+"APT-001","Appointments","Schedule a new appointment","Verify that a receptionist or admin can create a new appointment for a patient with a specific doctor on a specific date and time.","User is logged in. At least 1 patient and 1 doctor exist in the system. Appointments page (/dashboard/appointments) is open.","Patient: Rajesh Kumar | Doctor: Dr. Anjali Sharma | Date: 2026-03-10 | Time: 10:30 AM | Duration: 30 minutes | Reason: Teeth cleaning","1. Go to Appointments page from sidebar.
+2. Click 'New Appointment' or '+' button.
+3. Select Patient: Rajesh Kumar (from dropdown).
+4. Select Doctor: Dr. Anjali Sharma (from dropdown).
+5. Set Date: 2026-03-10.
+6. Set Time: 10:30 AM.
+7. Set Duration: 30 minutes.
+8. Enter Reason: Teeth cleaning.
+9. Click 'Create Appointment' or 'Save'.","A success toast should appear. The appointment should appear in the appointments list with status 'Scheduled'. It should show the patient name, doctor name, date, and time.","Appointment created. Toast: 'Appointment created!' Entry visible in list with status: Scheduled.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"APT-002","Appointments","Schedule overlapping appointment for same doctor","Verify that the system warns or prevents booking two appointments for the same doctor at the same date and time.","Appointments page is open. Dr. Anjali Sharma already has an appointment on 2026-03-10 at 10:30 AM.","Patient: Meera Patel | Doctor: Dr. Anjali Sharma | Date: 2026-03-10 | Time: 10:30 AM | Duration: 30 minutes | Reason: Root Canal consultation","1. Go to Appointments page.
+2. Click 'New Appointment'.
+3. Select a different patient: Meera Patel.
+4. Select the SAME doctor: Dr. Anjali Sharma.
+5. Set the SAME date and time: 2026-03-10, 10:30 AM.
+6. Click 'Create Appointment'.","The app should show an error: 'Dr. Anjali Sharma already has an appointment at this time. Please choose a different time slot.' The overlapping appointment should NOT be created.","The second appointment was created without any warning. Dr. Anjali Sharma now has TWO patients booked at 10:30 AM on the same day.","Fail","Critical","P0","BUG-003","The system does not check for double-booking. A doctor can have multiple patients scheduled at the exact same date and time. This will cause confusion in the clinic — the doctor cannot see two patients simultaneously.","1. Create an appointment for Dr. Anjali Sharma on 2026-03-10 at 10:30 AM.
+2. Create another appointment for the same doctor on the same date and time.
+3. Both appointments are saved without any warning.","Two appointments exist for the same doctor at the same time.","System should prevent overlapping appointments for the same doctor and show a conflict warning.","Windows 11","Chrome 132","Nihal","2026-03-05","","Screenshot: double_booking_bug.png","Critical — this directly impacts patient care and scheduling."
+"VISIT-001","Visits / Check-in","Check in a patient for their appointment","Verify that a receptionist can check in a patient, creating a visit record with a queue number.","User is logged in. Visits page (/dashboard/visits) is open. At least 1 patient and 1 doctor exist.","Patient: Rajesh Kumar | Doctor: Dr. Anjali Sharma | Chief Complaint: Toothache in lower right molar","1. Go to Visits page from sidebar.
+2. Click 'Quick Check-in' or 'New Visit' button.
+3. Select Patient: Rajesh Kumar.
+4. Select Doctor: Dr. Anjali Sharma.
+5. Enter Chief Complaint: Toothache in lower right molar.
+6. Click 'Check In' or 'Save'.","A visit record should be created with status 'Waiting'. A queue number should be assigned. The visit should appear in the visits list showing patient name, doctor, complaint, and status.","Visit created. Status: Waiting. Queue number assigned. All details correct.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Check-in workflow smooth."
+"VISIT-002","Visits / Check-in","Move visit from Waiting to In Progress to Completed","Verify that the visit status can be changed step by step: Waiting → In Progress → Completed.","A visit for Rajesh Kumar exists with status 'Waiting'.","Visit: Rajesh Kumar's current visit","1. Go to Visits page.
+2. Find Rajesh Kumar's visit with status 'Waiting'.
+3. Click the 'Start' button on that visit.
+4. Verify status changes to 'In Progress'.
+5. Click the 'Complete' button on that visit.
+6. Verify status changes to 'Completed'.","After clicking Start: status should change to 'In Progress' (with a blue or amber badge). After clicking Complete: status should change to 'Completed' (green badge). Each transition should show a success toast.","Start → status changed to In Progress. Complete → status changed to Completed. Toasts appeared for both.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Visit lifecycle works correctly."
+"DENTAL-001","Dental Chart","Record a tooth condition on the dental chart","Verify that a doctor can click on a tooth in the interactive dental chart and record its condition.","User is logged in. Dental Chart page (/dashboard/dental-chart) is open. A patient is selected.","Patient: Rajesh Kumar | Tooth Number: 19 (Lower Left 2nd Molar) | Condition: Cavity | Notes: Deep cavity on occlusal surface, needs filling","1. Go to Dental Chart page from sidebar.
+2. Select patient: Rajesh Kumar from the patient dropdown.
+3. On the interactive tooth diagram, click on tooth number 19 (lower left area).
+4. In the popup or side panel that appears, select Condition: Cavity.
+5. Enter Notes: Deep cavity on occlusal surface, needs filling.
+6. Click 'Save' or 'Record'.","Tooth 19 should change color on the chart to indicate a recorded condition (e.g. red for cavity). The condition details should be saved. A success toast should appear.","Tooth 19 highlighted in red. Condition saved. Toast: 'Condition recorded.' Notes visible when clicking tooth again.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Interactive dental chart is intuitive."
+"DENTAL-002","Dental Chart","Click a tooth without selecting a patient first","Verify that the dental chart shows a helpful message when no patient is selected.","Dental Chart page is open. No patient is selected in the dropdown.","No patient selected | Click any tooth","1. Go to Dental Chart page.
+2. Do NOT select any patient from the patient dropdown.
+3. Click on any tooth in the chart (e.g. tooth 1).","The app should show a message: 'Please select a patient first' or disable clicking on teeth until a patient is chosen. It should NOT crash or show a blank error.","App showed an error toast: 'Error saving condition' and the console showed 'patient_id is required'. The tooth still changed color visually even though nothing was saved.","Fail","Minor","P2","BUG-004","When no patient is selected and a user clicks on a tooth in the dental chart, the app tries to save the condition without a patient ID. This results in an error. Additionally, the tooth visually changes color (suggesting it was saved) even though the save actually failed — misleading the user.","1. Go to Dental Chart page.
+2. Do NOT select a patient.
+3. Click on any tooth.
+4. Try to save a condition.
+5. See error toast, but tooth color changes anyway.","Error toast appeared. Tooth color changed visually even though data was not saved.","Chart should require patient selection first. Teeth should be unclickable or greyed out until a patient is chosen.","Windows 11","Chrome 132","Nihal","2026-03-05","","Screenshot: dental_chart_no_patient.png","UX issue — visual state is misleading. Add patient validation before chart interaction."
+"TREAT-001","Treatments","Create a new treatment plan for a patient","Verify that a doctor can create a treatment plan with estimated cost and planned date.","User is logged in. Treatments page (/dashboard/treatments) is open. At least one patient exists.","Patient: Rajesh Kumar | Treatment Type: Root Canal | Tooth: 19 | Description: Root canal therapy for deep cavity in lower left 2nd molar | Estimated Cost: ₹8,000 | Planned Date: 2026-03-15","1. Go to Treatments page from sidebar.
+2. Click 'New Treatment' or '+' button.
+3. Select Patient: Rajesh Kumar.
+4. Select Treatment Type: Root Canal (from dropdown).
+5. Enter Tooth Number: 19.
+6. Enter Description.
+7. Enter Estimated Cost: 8000.
+8. Set Planned Date: 2026-03-15.
+9. Click 'Save' or 'Create Treatment'.","Treatment should be created with status 'Planned'. It should appear in the list showing patient name, treatment type (Root Canal), tooth 19, cost ₹8,000, and planned date. A success toast should appear.","Treatment created. Status: Planned. All details correct in list.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"TREAT-002","Treatments","Change treatment status from Planned to In Progress","Verify that a treatment plan can be moved from Planned to In Progress.","A treatment for Rajesh Kumar exists with status 'Planned'.","Treatment: Root Canal for Rajesh Kumar | New Status: In Progress","1. Go to Treatments page.
+2. Find the Root Canal treatment for Rajesh Kumar.
+3. Click the status change button or dropdown.
+4. Change status to 'In Progress'.","The treatment status badge should change to 'In Progress' (amber/yellow color). A success toast should confirm the update.","Status changed to In Progress. Badge color updated. Toast confirmed.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"RX-001","Prescriptions","Create a prescription with multiple medicines","Verify that a doctor can create a prescription with multiple medicines and all details are saved correctly.","User is logged in. Prescriptions page (/dashboard/prescriptions) is open. At least 1 patient and 1 doctor exist.","Patient: Rajesh Kumar | Doctor: Dr. Anjali Sharma | Diagnosis: Acute Pulpitis | Medicine 1: Amoxicillin 500mg, 3 times daily, 7 days | Medicine 2: Ibuprofen 400mg, twice daily, 5 days | Instructions: Take medicines after food. Avoid cold drinks for 2 days.","1. Go to Prescriptions page.
+2. Click 'New Prescription' or '+' button.
+3. Select Patient: Rajesh Kumar.
+4. Select Doctor: Dr. Anjali Sharma.
+5. Enter Diagnosis: Acute Pulpitis.
+6. Add Medicine 1: Name: Amoxicillin 500mg, Dosage: 500mg, Frequency: 3 times daily, Duration: 7 days.
+7. Click 'Add Another Medicine' and add Medicine 2: Ibuprofen 400mg, Dosage: 400mg, Frequency: Twice daily, Duration: 5 days.
+8. Enter Instructions: Take medicines after food. Avoid cold drinks for 2 days.
+9. Click 'Save' or 'Create Prescription'.","Prescription should be created and appear in the list. It should show patient name, doctor name, diagnosis, and the number of medicines. Both medicines should be saved with correct dosages and frequencies.","Prescription created. Both medicines saved. Toast: 'Prescription created!'","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"RX-002","Prescriptions","Download prescription as PDF","Verify that a saved prescription can be downloaded as a PDF document with all details.","A prescription for Rajesh Kumar exists in the system.","Prescription: Rajesh Kumar's prescription with 2 medicines","1. Go to Prescriptions page.
+2. Find Rajesh Kumar's prescription in the list.
+3. Click the 'Download PDF' button (usually a download icon).
+4. Wait for the PDF file to be generated and downloaded.
+5. Open the downloaded PDF file.","A PDF file should download. It should contain: Hospital name, doctor name, patient name, date, diagnosis, all medicines with dosages, frequencies, durations, and instructions. The layout should be readable and professional.","PDF downloaded. Contains all prescription details. Layout is clean and professional.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","jsPDF generation works. PDF is well-formatted."
+"BILL-001","Billing / Invoices","Create a new invoice for a patient","Verify that an admin/receptionist can create an invoice with multiple line items, tax, and discount.","User is logged in. Billing page (/dashboard/billing) is open. At least 1 patient exists.","Patient: Rajesh Kumar | Item 1: Root Canal Treatment, Qty: 1, Unit Price: ₹8,000 | Item 2: Dental X-Ray, Qty: 2, Unit Price: ₹500 | Tax: 5% | Discount: ₹500","1. Go to Billing page from sidebar.
+2. Click 'New Invoice' or '+' button.
+3. Select Patient: Rajesh Kumar.
+4. Add Item 1: Description: Root Canal Treatment, Quantity: 1, Unit Price: 8000.
+5. Add Item 2: Description: Dental X-Ray, Quantity: 2, Unit Price: 500.
+6. Check if Subtotal automatically calculates (should be ₹9,000).
+7. Enter Tax: 5% (or ₹450).
+8. Enter Discount: 500.
+9. Check if Total calculates correctly (₹8,950).
+10. Click 'Create Invoice'.","Invoice should be created with correct calculations. Subtotal: ₹9,000. Tax: ₹450. Discount: ₹500. Total: ₹8,950. Payment status should default to 'Pending'. Invoice number should be auto-generated.","Invoice created. Calculations correct. Status: Pending. Invoice number generated.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"BILL-002","Billing / Invoices","Invoice total does not update when item quantity is changed","Verify that the invoice total recalculates dynamically when item quantities are modified.","Billing page is open with New Invoice form. One item already added: Root Canal ₹8,000 × 1.","Change Quantity from 1 to 2 for Root Canal line item.","1. Go to Billing page and start a new invoice.
+2. Add Item: Root Canal Treatment, Qty: 1, Price: 8000.
+3. Verify total shows ₹8,000.
+4. Change Quantity to 2.
+5. Check if total updates to ₹16,000.","When quantity is changed from 1 to 2, the item total should update to ₹16,000 (2 × ₹8,000). The overall subtotal and grand total should also update automatically without needing to click anything.","Item total and subtotal updated correctly to ₹16,000 when quantity was changed.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Dynamic calculation works well."
+"REPORT-001","Reports / Analytics","Dashboard reports page loads charts correctly","Verify that the Reports page loads and displays charts (bar chart, pie chart) with real data from the hospital.","User is logged in as hospital_admin. Reports page (/dashboard/reports) is open. The hospital has some existing patients, appointments, and invoices.","No specific input — uses hospital data already in the system.","1. Go to Reports page from sidebar.
+2. Wait for the page to fully load.
+3. Check if a bar chart (e.g. appointments by month) appears.
+4. Check if a pie chart (e.g. treatment types breakdown) appears.
+5. Look for summary stat cards (revenue, patient count, etc.).","Charts should render with data from the hospital. Bar chart should show appointment trends. Pie chart should show treatment distribution. Stat cards should show totals for revenue, patients, and appointments. The page should load within 3 seconds.","Charts loaded. Bar chart shows monthly data. Pie chart shows treatment types. Stats visible. Page loaded in ~2 seconds.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Recharts library renders correctly."
+"SETTINGS-001","Settings","Update hospital name and address in settings","Verify that a hospital admin can update their hospital's basic information.","User is logged in as hospital_admin. Settings page (/dashboard/settings) is open.","Hospital Name: SmileCare Dental Clinic (changed from previous) | Address: 100 Brigade Road, Bangalore | City: Bangalore | Pincode: 560001","1. Go to Settings page from sidebar.
+2. Find the Hospital Information or General Settings section.
+3. Update Hospital Name to: SmileCare Dental Clinic.
+4. Update Address to: 100 Brigade Road, Bangalore.
+5. Update City to: Bangalore.
+6. Update Pincode to: 560001.
+7. Click 'Save' or 'Update'.
+8. Refresh the page and check if changes persisted.","A success toast should appear: 'Settings updated!' After refreshing, all changed values should remain. The hospital name in the sidebar or header should also update.","Settings saved. Toast appeared. After refresh, new name and address persist.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"SETTINGS-002","Settings","Update hospital branding colors","Verify that the hospital's primary and secondary branding colors can be changed in settings.","Settings page is open. User is hospital_admin.","Primary Color: #2563eb (blue) | Secondary Color: #7c3aed (purple)","1. Go to Settings page.
+2. Find the Branding or Appearance section.
+3. Change Primary Color by entering: #2563eb.
+4. Change Secondary Color by entering: #7c3aed.
+5. Click 'Save'.
+6. Navigate to the hospital's public page (if available) to see if colors changed.","Colors should be saved successfully. If the hospital has a public-facing page, the new colors should be reflected. A success toast should confirm the save.","Colors saved. Toast confirmed. Public page shows updated branding colors.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"ADMIN-001","Admin Panel","Super Admin approves a pending hospital","Verify that the Super Admin can approve a hospital registration request.","User is logged in as super_admin. Admin Dashboard (/admin) shows at least 1 pending hospital.","Hospital to approve: 'New Smile Dental' (status: pending)","1. Log in as Super Admin.
+2. On the Admin Dashboard, look at the 'Pending Approvals' section.
+3. Find 'New Smile Dental' in the pending list.
+4. Click the 'Approve' button next to it.
+5. Wait for the action to complete.","A success toast should appear: 'New Smile Dental approved'. The hospital should move from the Pending list. The hospital status should change to 'Approved'. The hospital's admin should now be able to log in and access their dashboard.","Toast: 'New Smile Dental approved'. Hospital removed from pending list. Stats updated.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"ADMIN-002","Admin Panel","Super Admin rejects a pending hospital","Verify that the Super Admin can reject a hospital registration and the hospital admin is informed.","Admin Dashboard shows at least 1 pending hospital.","Hospital to reject: 'Fake Clinic 123' (status: pending)","1. On Admin Dashboard, find 'Fake Clinic 123' in Pending Approvals.
+2. Click the 'Reject' button.
+3. Wait for the action to complete.","A toast should confirm: 'Fake Clinic 123 rejected'. The hospital should be removed from the pending list. Its status should change to 'rejected'.","Toast: 'Fake Clinic 123 rejected'. Removed from pending. Status changed.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"ADMIN-003","Admin Panel - Subscriptions","View expiring subscriptions list","Verify that the Admin Dashboard shows hospitals whose subscriptions are expiring within 30 days.","Super Admin is logged in. At least one hospital has a subscription ending within 30 days.","No specific input — system data.","1. Log in as Super Admin.
+2. On the Admin Dashboard, look at the 'Expiring Subscriptions' section.
+3. Check if hospitals with subscriptions ending within 30 days are listed.
+4. Verify each entry shows hospital name, subscription plan (trial/basic/premium/enterprise), and days remaining.","Hospitals expiring within 30 days should be listed. Each entry should show: hospital name, plan type badge, and 'Expires in X days'. A 'Send Reminder' button should be visible.","Expiring hospitals listed correctly. Plan badges and days remaining visible. Send Reminder button present.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","",""
+"PATIENT-001","Patient Portal","Patient views their upcoming appointments","Verify that a logged-in patient can see their upcoming dental appointments on the patient dashboard.","User is logged in as patient. Patient has at least one upcoming appointment.","Patient login: patient@gmail.com","1. Log in as patient.
+2. After redirect to Patient Dashboard (/patient), look for the 'Upcoming Appointments' section.
+3. Check if your scheduled appointments are listed.
+4. Verify each appointment shows: doctor name, date, time, and status.","The patient should see their upcoming appointments with correct doctor name, date/time, and status (Scheduled or Confirmed). Appointments should be sorted by date (nearest first).","Upcoming appointments displayed. Doctor name, date, time, and status all correct.","Pass","","","","","","","","macOS Ventura","Safari 18","Nihal","2026-03-05","","",""
+"PATIENT-002","Patient Portal","Patient views medical history","Verify that a patient can view their past visits and treatments in the history section.","User is logged in as patient. Patient has past completed visits.","Patient login: patient@gmail.com","1. Log in as patient.
+2. On the Patient Dashboard, look for 'Medical History' or 'Past Visits' section.
+3. Click on it or navigate to /patient/history.
+4. Check if past visits are listed with details.","Past visits should be listed showing: visit date, doctor name, diagnosis, treatment performed, and status (Completed). The list should be sorted by most recent first.","Past visits listed correctly. Dates, doctors, and treatments all visible.","Pass","","","","","","","","macOS Ventura","Safari 18","Nihal","2026-03-05","","",""
+"LANDING-001","Landing Page","Search hospitals by city on the landing page","Verify that the landing page allows users to search for dental hospitals by city name.","App landing page (/) is open. No login required.","Search: Bangalore","1. Open the DentalHub landing page (home page).
+2. Find the search bar (usually says 'Search hospitals' or 'Find a clinic near you').
+3. Type: Bangalore
+4. Press Enter or click the Search icon.
+5. Check the results below.","Search results should show hospitals in Bangalore. Each result should show hospital name, city, rating, and a way to view more details.","Results showed hospitals in Bangalore. Names, ratings, and cities displayed correctly.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Landing page search works."
+"RESPONSIVE-001","Responsive Design","Dashboard sidebar on mobile screen","Verify that the dashboard sidebar collapses into a hamburger menu on mobile screen sizes.","User is logged in. Dashboard page is open on a mobile device or browser resized to mobile width (375px).","Device: iPhone 15 (375 × 812) or browser resized to 375px wide.","1. Open the Dashboard on a mobile phone or resize the browser to 375px wide.
+2. Check if the full sidebar is visible or hidden.
+3. If hidden, look for a hamburger menu icon (☰ or three lines) at the top.
+4. Tap/click the hamburger icon.
+5. Check if sidebar slides out with all navigation links.","On mobile, the sidebar should be hidden by default. A hamburger menu icon should appear. Tapping it should slide the sidebar in from the left. All navigation links (Patients, Doctors, Appointments, etc.) should be accessible.","Sidebar hidden on mobile. Hamburger icon visible. Sidebar slides in when tapped. All links accessible.","Pass","","","","","","","","iOS 18 (iPhone 15)","Safari 18","Nihal","2026-03-05","","","Responsive sidebar works well."
+"RESPONSIVE-002","Responsive Design","Patient list table on small screen","Verify that the patients list table is readable on a small mobile screen without horizontal scrolling issues.","User is logged in. Patients page is open on mobile (375px wide). Multiple patients exist.","Device: Mobile browser (375px width)","1. Open Patients page on a mobile device.
+2. Scroll through the patient list.
+3. Check if all important columns (Name, Phone, Last Visit) are visible.
+4. Check if the table scrolls horizontally if needed or if cards/tiles are used instead.","On mobile, the patient list should either: (a) show a card/tile layout instead of a table, or (b) allow horizontal scrolling. Key info (name, phone) must be readable without zooming.","Patients page shows card layout on mobile instead of table. Name and phone visible. Cards stack vertically. Looks clean.","Pass","","","","","","","","Android 14 (Samsung Galaxy S24)","Chrome Mobile 132","Nihal","2026-03-05","","","Good mobile-responsive design choice — cards instead of tables."
+"SECURITY-001","Security / Authorization","Receptionist cannot access Admin Panel","Verify that a user with the 'receptionist' role cannot access the Super Admin panel by directly typing the URL.","User is logged in as receptionist (not as super_admin).","Action: Navigate to /admin directly in the browser URL bar.","1. Log in with a receptionist account.
+2. In the browser address bar, manually type the Admin panel URL (e.g. https://dentizhub.netlify.app/admin).
+3. Press Enter.
+4. Observe what happens.","The app should either redirect the receptionist back to /dashboard or show an 'Access Denied' / 'Unauthorized' message. The receptionist should NOT see the Super Admin Dashboard.","Receptionist was redirected back to /dashboard. Admin panel was not accessible.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Middleware authorization works correctly."
+"SECURITY-002","Security / Authorization","Patient cannot access hospital dashboard","Verify that a patient cannot access staff-only pages like /dashboard/patients by URL manipulation.","User is logged in as patient.","Action: Navigate to /dashboard/patients directly.","1. Log in with a patient account.
+2. In the browser address bar, type: /dashboard/patients.
+3. Press Enter.
+4. Observe what happens.","The patient should be blocked from accessing the hospital dashboard. They should be redirected to /patient or shown an 'Access Denied' message.","Patient was redirected to /patient. Could not access staff dashboard.","Pass","","","","","","","","Windows 11","Chrome 132","Nihal","2026-03-05","","","Role-based access control works."
+"PERF-001","Performance","Dashboard page load time","Verify that the main hospital dashboard loads within 3 seconds on a standard internet connection.","User is logged in as hospital_admin. Hospital has 50+ patients and 100+ past appointments.","Standard broadband connection (50 Mbps+).","1. Log in and wait for the dashboard to load.
+2. Use a stopwatch or browser dev tools (Network tab) to measure load time.
+3. Measure from clicking 'Dashboard' in sidebar to seeing all stats and recent appointments fully loaded.","The dashboard page should fully render (all stat cards, recent appointments, quick action buttons) within 3 seconds. No visible loading spinners should remain after 3 seconds.","Dashboard loaded in approximately 4.5 seconds. Stats appeared at ~2 seconds, but the recent appointments list took an additional 2.5 seconds to populate.","Fail","Major","P2","BUG-005","The hospital dashboard takes approximately 4.5 seconds to fully load — 1.5 seconds longer than the acceptable 3-second threshold. The stat cards load first, but the recent appointments section has a significant delay, likely due to fetching multiple joined records (patient + doctor data for each appointment).","1. Log in as hospital_admin.
+2. Navigate to Dashboard.
+3. Measure total load time until all sections are fully visible.","Total load time: ~4.5 seconds. Appointments list delays by 2.5 seconds after stats appear.","Full page should load within 3 seconds, including all sections.","Windows 11","Chrome 132","Nihal","2026-03-05","","Network tab screenshot: dashboard_load_perf.png","Consider pagination for recent appointments, or eager loading with React Query prefetch."
+"EDGE-001","Edge Case — Patients","Add patient with extremely long name (300 characters)","Verify that the system handles an extremely long patient name gracefully.","Patients page is open with Add Patient form.","Name: AAAAAA... (300 letter A characters) | Phone: 9876543210","1. Go to Patients page.
+2. Click 'Add Patient'.
+3. In the Name field, paste 300 'A' characters.
+4. Enter a valid phone number.
+5. Click 'Save'.","The app should either: (a) limit the name field to a maximum length (e.g. 255 chars) and prevent typing more, or (b) show a validation error: 'Name is too long. Maximum 255 characters allowed.'","The app accepted all 300 characters and saved the patient. The name is truncated in the patient list card, but hovering shows the full 300-character name. No error or warning was shown.","Fail","Trivial","P3","BUG-006","The patient name field accepts names longer than what the database column can store (likely 255 characters). While it does not crash, the name is silently truncated in some views. No maximum length validation exists on the form.","1. Open Add Patient form.
+2. Paste 300 characters in the Name field.
+3. Save the patient.
+4. View the patient in the list — name appears truncated.","Name accepted without limit. Truncated in list display. No validation warning.","Name field should either have a maxlength attribute or show a validation warning when exceeding the limit.","Windows 11","Chrome 132","Nihal","2026-03-05","","","Low priority but should have basic input length validation."
+"EDGE-002","Edge Case — Billing","Create invoice with negative amount","Verify that the billing system does not accept negative values for item prices.","Billing page is open with New Invoice form.","Patient: Rajesh Kumar | Item: Test Refund, Qty: 1, Unit Price: -5000","1. Go to Billing page.
+2. Click 'New Invoice'.
+3. Select Patient: Rajesh Kumar.
+4. Add Item: Description: Test Refund, Quantity: 1, Unit Price: -5000.
+5. Click 'Create Invoice'.","The app should show a validation error: 'Price cannot be negative.' The invoice should NOT be created with a negative amount.","Invoice was created with total of -₹5,000. Payment status: Pending. This makes no sense in the billing context.","Fail","Major","P2","BUG-007","The billing/invoicing system accepts negative values for item unit prices. This allows creating invoices with negative totals (e.g. -₹5,000). There is no validation to prevent this, which could corrupt financial reports and revenue calculations.","1. Create new invoice.
+2. Add item with unit price: -5000.
+3. Save invoice.
+4. Invoice shows negative total.","Invoice created with -₹5,000 total. No validation error.","System should reject negative prices and show: 'Price must be a positive number.'","Windows 11","Chrome 132","Nihal","2026-03-05","","Screenshot: negative_invoice.png","Could impact financial reports. Add min=0 validation on price input field."

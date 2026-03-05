@@ -36,6 +36,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const redirect = searchParams.get('redirect') || '/dashboard'
+    const registrationType = searchParams.get('type') // 'hospital' for hospital registration
     const baseUrl = getBaseUrl(request.url)
 
     if (!code) {
@@ -92,13 +93,38 @@ export async function GET(request: Request) {
 
         if (profileErr || !existingProfile) {
             // First-time login — create profile
-            const newRole = isThisSuperAdmin ? 'super_admin' : 'patient'
+            const isHospitalReg = registrationType === 'hospital'
+            const newRole = isThisSuperAdmin ? 'super_admin' : isHospitalReg ? 'hospital_admin' : 'patient'
+
+            let hospitalId: string | null = null
+
+            // If hospital registration, create a new hospital first
+            if (isHospitalReg && !isThisSuperAdmin) {
+                const userName = user.user_metadata?.full_name || user.user_metadata?.name || 'My Hospital'
+                const slug = userName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now()
+                const { data: newHospital, error: hospErr } = await db.from('hospitals').insert({
+                    name: `${userName}'s Dental Clinic`,
+                    slug,
+                    email: user.email || '',
+                    owner_id: user.id,
+                    status: 'pending',
+                    subscription_plan: 'trial',
+                }).select('id').single()
+
+                if (hospErr) {
+                    console.error('[Callback] Hospital creation failed:', hospErr.message)
+                } else {
+                    hospitalId = newHospital.id
+                }
+            }
+
             const { error: insertErr } = await db.from('profiles').upsert({
                 id: user.id,
                 email: user.email || '',
                 full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
                 avatar_url: user.user_metadata?.avatar_url || '',
                 role: newRole,
+                ...(hospitalId ? { hospital_id: hospitalId } : {}),
             }, { onConflict: 'id' })
 
             if (insertErr) {
@@ -107,6 +133,9 @@ export async function GET(request: Request) {
 
             if (isThisSuperAdmin) {
                 return NextResponse.redirect(`${baseUrl}/admin`)
+            }
+            if (isHospitalReg) {
+                return NextResponse.redirect(`${baseUrl}/dashboard`)
             }
             return NextResponse.redirect(`${baseUrl}/patient`)
         }

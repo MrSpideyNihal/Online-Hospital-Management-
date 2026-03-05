@@ -58,10 +58,12 @@ function LoginForm() {
         setIsGoogleLoading(true)
         try {
             const baseUrl = getBaseUrl()
+            const callbackParams = new URLSearchParams({ redirect })
+            if (isHospitalRegistration) callbackParams.set('type', 'hospital')
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${baseUrl}/auth/callback?redirect=${redirect}`,
+                    redirectTo: `${baseUrl}/auth/callback?${callbackParams.toString()}`,
                 },
             })
             if (error) throw error

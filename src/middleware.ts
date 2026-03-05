@@ -2,6 +2,16 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+    const { pathname, searchParams } = request.nextUrl
+
+    // If a non-callback page has a `code` param (stale OAuth code), strip it
+    if (pathname !== '/auth/callback' && searchParams.has('code')) {
+        const cleanUrl = request.nextUrl.clone()
+        cleanUrl.searchParams.delete('code')
+        cleanUrl.searchParams.delete('redirect')
+        return NextResponse.redirect(cleanUrl)
+    }
+
     // Create a response that we can modify (to set refreshed cookies)
     let supabaseResponse = NextResponse.next({ request })
 
