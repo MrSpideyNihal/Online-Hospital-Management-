@@ -103,6 +103,47 @@ export async function GET(request: Request) {
         const admin = getAdminClient()
         const db = admin || supabase
 
+        const notifyApplicationSubmitted = async (hospitalId: string, hospitalName: string) => {
+            try {
+                const notifications = [
+                    {
+                        hospital_id: hospitalId,
+                        user_id: user.id,
+                        title: 'Application Submitted',
+                        message: `Your hospital "${hospitalName}" is pending manual approval and payment verification.`,
+                        type: 'warning',
+                        link: '/dashboard',
+                        is_read: false,
+                    },
+                ]
+
+                if (admin) {
+                    const { data: superAdmins } = await admin
+                        .from('profiles')
+                        .select('id')
+                        .eq('role', 'super_admin')
+
+                    if (superAdmins?.length) {
+                        notifications.push(
+                            ...superAdmins.map((s) => ({
+                                hospital_id: hospitalId,
+                                user_id: s.id,
+                                title: 'New Hospital Application',
+                                message: `${hospitalName} submitted a new hospital application for approval.`,
+                                type: 'info',
+                                link: '/admin/hospitals',
+                                is_read: false,
+                            }))
+                        )
+                    }
+                }
+
+                await db.from('notifications').insert(notifications)
+            } catch {
+                // Non-blocking: notification failures should not block auth callback.
+            }
+        }
+
         // Check if profile exists
         const { data: existingProfile, error: profileErr } = await db
             .from('profiles')
@@ -119,6 +160,7 @@ export async function GET(request: Request) {
             const newRole = isThisSuperAdmin ? 'super_admin' : isHospitalReg ? 'hospital_admin' : 'patient'
 
             let hospitalId: string | null = null
+            let hospitalName = 'Dental Clinic'
 
             // If hospital registration, create a new hospital first
             if (isHospitalReg && !isThisSuperAdmin) {
@@ -131,13 +173,14 @@ export async function GET(request: Request) {
                     owner_id: user.id,
                     status: 'pending',
                     subscription_plan: 'trial',
-                }).select('id').single()
+                }).select('id, name').single()
 
                 if (hospErr || !newHospital?.id) {
                     console.error('[Callback] Hospital creation failed:', hospErr?.message)
                     return NextResponse.redirect(`${baseUrl}/login?error=hospital_creation_failed`)
                 }
                 hospitalId = newHospital.id
+                hospitalName = newHospital.name
             }
 
             const { error: insertErr } = await db.from('profiles').upsert({
@@ -159,6 +202,10 @@ export async function GET(request: Request) {
                 return NextResponse.redirect(`${baseUrl}/login?error=hospital_creation_failed`)
             }
 
+            if (isHospitalReg && hospitalId) {
+                await notifyApplicationSubmitted(hospitalId, hospitalName)
+            }
+
             if (isThisSuperAdmin) {
                 return NextResponse.redirect(`${baseUrl}/admin`)
             }
@@ -171,17 +218,21 @@ export async function GET(request: Request) {
         // Existing patient can explicitly apply for hospital management from /login?type=hospital.
         if (isHospitalReg && !isThisSuperAdmin && ['patient', 'hospital_admin'].includes(existingProfile.role)) {
             let hospitalId = existingProfile.hospital_id as string | null
+            let hospitalName = 'Dental Clinic'
+            let hospitalStatus: string | null = null
 
             // Reuse an existing owned hospital if present to avoid duplicates.
             if (!hospitalId) {
                 const { data: ownedHospital } = await db
                     .from('hospitals')
-                    .select('id')
+                    .select('id, name, status')
                     .eq('owner_id', user.id)
                     .order('created_at', { ascending: false })
                     .limit(1)
                     .maybeSingle()
                 hospitalId = ownedHospital?.id || null
+                hospitalName = ownedHospital?.name || hospitalName
+                hospitalStatus = ownedHospital?.status || null
             }
 
             if (!hospitalId) {
@@ -194,7 +245,7 @@ export async function GET(request: Request) {
                     owner_id: user.id,
                     status: 'pending',
                     subscription_plan: 'trial',
-                }).select('id').single()
+                }).select('id, name, status').single()
 
                 if (hospErr || !newHospital?.id) {
                     console.error('[Callback] Hospital creation failed (existing profile):', hospErr?.message)
@@ -202,6 +253,18 @@ export async function GET(request: Request) {
                 }
 
                 hospitalId = newHospital.id
+                hospitalName = newHospital.name
+                hospitalStatus = newHospital.status
+            }
+
+            if (hospitalId && !hospitalStatus) {
+                const { data: hospitalInfo } = await db
+                    .from('hospitals')
+                    .select('name, status')
+                    .eq('id', hospitalId)
+                    .maybeSingle()
+                hospitalName = hospitalInfo?.name || hospitalName
+                hospitalStatus = hospitalInfo?.status || null
             }
 
             const { error: upgradeErr } = await db
@@ -212,6 +275,10 @@ export async function GET(request: Request) {
             if (upgradeErr) {
                 console.error('[Callback] Profile role upgrade failed:', upgradeErr.message)
                 return NextResponse.redirect(`${baseUrl}/login?error=profile_setup_failed`)
+            }
+
+            if (hospitalId && hospitalStatus !== 'approved') {
+                await notifyApplicationSubmitted(hospitalId, hospitalName)
             }
 
             return NextResponse.redirect(`${baseUrl}/dashboard`)

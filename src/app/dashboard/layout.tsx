@@ -40,6 +40,7 @@ import { useTheme } from 'next-themes'
 
 const NAV_ITEMS = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard/notifications', label: 'Notifications', icon: Bell },
     { href: '/dashboard/patients', label: 'Patients', icon: Users },
     { href: '/dashboard/appointments', label: 'Appointments', icon: Calendar },
     { href: '/dashboard/visits', label: 'OPD / Visits', icon: ClipboardList },
@@ -51,6 +52,8 @@ const NAV_ITEMS = [
     { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]
+
+const LOCKED_ALLOWED_PATHS = new Set(['/dashboard', '/dashboard/settings', '/dashboard/notifications'])
 
 export default function DashboardLayout({
     children,
@@ -64,6 +67,10 @@ export default function DashboardLayout({
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const { user, profile, hospital, isLoading, signOut } = useAuth()
+    const isHospitalLocked = !!hospital && (hospital.status !== 'approved' || hospital.is_frozen)
+    const navItems = isHospitalLocked
+        ? NAV_ITEMS.filter((item) => LOCKED_ALLOWED_PATHS.has(item.href))
+        : NAV_ITEMS
 
     useEffect(() => { setMounted(true) }, [])
 
@@ -77,6 +84,16 @@ export default function DashboardLayout({
             router.push('/patient')
         }
     }, [isLoading, user, profile, router])
+
+    useEffect(() => {
+        if (!isLoading && user && profile?.role !== 'patient' && isHospitalLocked) {
+            const allowed = Array.from(LOCKED_ALLOWED_PATHS)
+            const isAllowed = allowed.some((path) => pathname === path || pathname.startsWith(`${path}/`))
+            if (!isAllowed) {
+                router.replace('/dashboard')
+            }
+        }
+    }, [isLoading, user, profile, isHospitalLocked, pathname, router])
 
     const handleLogout = async () => {
         await signOut()
@@ -108,7 +125,7 @@ export default function DashboardLayout({
 
             {/* Nav Links */}
             <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-                {NAV_ITEMS.map((item) => {
+                {navItems.map((item) => {
                     const isActive = pathname === item.href ||
                         (item.href !== '/dashboard' && pathname.startsWith(item.href))
                     return (
@@ -191,7 +208,7 @@ export default function DashboardLayout({
                         </Sheet>
 
                         <h1 className="text-lg font-semibold">
-                            {NAV_ITEMS.find((item) =>
+                            {navItems.find((item) =>
                                 pathname === item.href ||
                                 (item.href !== '/dashboard' && pathname.startsWith(item.href))
                             )?.label || 'Dashboard'}
@@ -199,7 +216,7 @@ export default function DashboardLayout({
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="relative">
+                        <Button variant="ghost" size="icon" className="relative" onClick={() => router.push('/dashboard/notifications')}>
                             <Bell className="w-5 h-5" />
                         </Button>
 
@@ -230,12 +247,40 @@ export default function DashboardLayout({
                 </header>
 
                 {/* Pending Hospital Banner */}
-                {hospital && hospital.status === 'pending' && (
-                    <div className="mx-4 lg:mx-6 mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center gap-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                {hospital && isHospitalLocked && (
+                    <div className={cn(
+                        'mx-4 lg:mx-6 mt-4 p-3 rounded-lg border flex items-center gap-3',
+                        hospital.is_frozen
+                            ? 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800'
+                            : hospital.status === 'rejected'
+                                ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+                                : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+                    )}>
+                        <AlertTriangle className={cn(
+                            'w-5 h-5 flex-shrink-0',
+                            hospital.is_frozen
+                                ? 'text-blue-600'
+                                : hospital.status === 'rejected'
+                                    ? 'text-red-600'
+                                    : 'text-amber-600'
+                        )} />
                         <div className="text-sm">
-                            <p className="font-medium text-amber-800 dark:text-amber-300">Hospital Pending Approval</p>
-                            <p className="text-amber-700 dark:text-amber-400">Your hospital is under review. You can set up your profile now via Settings. Once approved, your public page will be live at <strong>/hospitals/{hospital.slug}</strong></p>
+                            {hospital.is_frozen ? (
+                                <>
+                                    <p className="font-medium text-blue-800 dark:text-blue-300">Hospital Access Frozen</p>
+                                    <p className="text-blue-700 dark:text-blue-400">Your services are temporarily frozen by admin. Please contact support for reactivation.</p>
+                                </>
+                            ) : hospital.status === 'rejected' ? (
+                                <>
+                                    <p className="font-medium text-red-800 dark:text-red-300">Application Rejected</p>
+                                    <p className="text-red-700 dark:text-red-400">Your hospital application was rejected. Update your details in Settings and contact admin before reapplying.</p>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="font-medium text-amber-800 dark:text-amber-300">Application Submitted, Pending Approval</p>
+                                    <p className="text-amber-700 dark:text-amber-400">Your payment and onboarding are under manual verification. Only Settings and Notifications are enabled until approval.</p>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

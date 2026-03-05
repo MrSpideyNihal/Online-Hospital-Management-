@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import {
     Users, Calendar, ClipboardList, Stethoscope,
     TrendingUp, IndianRupee, Clock, UserPlus,
-    ArrowRight, Loader2,
+    ArrowRight, Loader2, AlertTriangle, Settings, Bell,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useAuth } from '@/lib/auth-context'
@@ -31,8 +31,9 @@ const statusColors: Record<string, string> = {
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export default function DashboardPage() {
-    const { hospitalId } = useAuth()
+    const { hospitalId, hospital } = useAuth()
     const today = new Date().toISOString().split('T')[0]
+    const isServiceLocked = !!hospital && (hospital.status !== 'approved' || hospital.is_frozen)
 
     const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(hospitalId)
     const { data: appointments, isLoading: apptsLoading, isError: apptsError } = useAppointments(hospitalId, { date: today, limit: 5 })
@@ -49,6 +50,36 @@ export default function DashboardPage() {
 
     const recentAppointments = (appointments || []).slice(0, 5)
     const opdQueue = (visits || []).filter((v: any) => v.status === 'waiting' || v.status === 'in_progress').slice(0, 5)
+
+    const lockConfig = hospital?.is_frozen
+        ? {
+            title: 'Service Temporarily Frozen',
+            message: 'Your hospital access is currently frozen by admin. Contact support to reactivate services.',
+            tone: 'bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800',
+            text: 'text-blue-800 dark:text-blue-300',
+        }
+        : hospital?.status === 'rejected'
+            ? {
+                title: 'Application Rejected',
+                message: 'Your application was rejected. Update your details in Settings and contact admin to proceed.',
+                tone: 'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800',
+                text: 'text-red-800 dark:text-red-300',
+            }
+            : hospital?.status === 'pending'
+                ? {
+                    title: 'Application Submitted, Pending Approval',
+                    message: 'Manual payment verification is in progress. You can configure your profile now; patient services will unlock after approval.',
+                    tone: 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800',
+                    text: 'text-amber-800 dark:text-amber-300',
+                }
+                : null
+
+    const dashboardActions = isServiceLocked
+        ? [
+            { label: 'Complete Profile', icon: Settings, href: '/dashboard/settings', color: 'from-blue-600 to-indigo-600' },
+            { label: 'View Notifications', icon: Bell, href: '/dashboard/notifications', color: 'from-amber-600 to-orange-600' },
+        ]
+        : QUICK_ACTIONS
 
     const getGreeting = () => {
         const hour = new Date().getHours()
@@ -71,9 +102,24 @@ export default function DashboardPage() {
                 </div>
             </div>
 
+            {isServiceLocked && lockConfig && (
+                <Card className={`border ${lockConfig.tone}`}>
+                    <CardContent className="p-5">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className={`w-5 h-5 mt-0.5 ${lockConfig.text}`} />
+                            <div className="space-y-1">
+                                <h2 className={`font-semibold ${lockConfig.text}`}>{lockConfig.title}</h2>
+                                <p className="text-sm text-muted-foreground">{lockConfig.message}</p>
+                                <p className="text-xs text-muted-foreground">You will receive updates in Notifications as soon as admin reviews your payment.</p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+
             {/* Quick Actions */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {QUICK_ACTIONS.map((action) => (
+            <div className={`grid grid-cols-2 ${isServiceLocked ? 'sm:grid-cols-2' : 'sm:grid-cols-4'} gap-3`}>
+                {dashboardActions.map((action) => (
                     <Link key={action.label} href={action.href}>
                         <Card className="group cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-0.5 border-border/50 overflow-hidden">
                             <CardContent className="p-4 flex items-center gap-3">

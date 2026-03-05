@@ -70,6 +70,44 @@ export async function PATCH(request: NextRequest) {
 
         const admin = createAdminClient()
 
+        const notifyOwner = async (hospital: { id: string; name: string; owner_id: string | null }, actionType: 'approve' | 'reject' | 'freeze' | 'unfreeze') => {
+            if (!hospital.owner_id) return
+
+            const payloadMap = {
+                approve: {
+                    title: 'Hospital Approved',
+                    message: `Your hospital "${hospital.name}" has been approved. You can now start using all services.`,
+                    type: 'success',
+                },
+                reject: {
+                    title: 'Hospital Application Rejected',
+                    message: `Your hospital "${hospital.name}" was rejected. Please contact support and resubmit with payment details.`,
+                    type: 'error',
+                },
+                freeze: {
+                    title: 'Hospital Access Frozen',
+                    message: `Your hospital "${hospital.name}" has been frozen by admin. Please contact support.`,
+                    type: 'warning',
+                },
+                unfreeze: {
+                    title: 'Hospital Access Restored',
+                    message: `Your hospital "${hospital.name}" has been unfrozen. Access is now restored.`,
+                    type: 'success',
+                },
+            } as const
+
+            const payload = payloadMap[actionType]
+            await admin.from('notifications').insert({
+                hospital_id: hospital.id,
+                user_id: hospital.owner_id,
+                title: payload.title,
+                message: payload.message,
+                type: payload.type,
+                link: '/dashboard',
+                is_read: false,
+            })
+        }
+
         if (action === 'freeze' || action === 'unfreeze') {
             const { data, error } = await admin
                 .from('hospitals')
@@ -80,6 +118,13 @@ export async function PATCH(request: NextRequest) {
             if (error) {
                 return NextResponse.json({ error: error.message }, { status: 500 })
             }
+
+            try {
+                await notifyOwner(data, action)
+            } catch {
+                // Non-blocking
+            }
+
             return NextResponse.json(data)
         }
 
@@ -103,6 +148,13 @@ export async function PATCH(request: NextRequest) {
         if (error) {
             return NextResponse.json({ error: error.message }, { status: 500 })
         }
+
+        try {
+            await notifyOwner(data, action)
+        } catch {
+            // Non-blocking
+        }
+
         return NextResponse.json(data)
     } catch (err) {
         console.error('Admin hospitals PATCH unexpected error:', err)

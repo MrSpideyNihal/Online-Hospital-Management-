@@ -30,24 +30,27 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var key='__chunk_reload_count';
+                var key='__chunk_reload_count_v2';
                 var count=parseInt(sessionStorage.getItem(key)||'0',10);
                 try{
                   var currentUrl=new URL(window.location.href);
                   if(currentUrl.searchParams.has('__chunkfix')){
                     currentUrl.searchParams.delete('__chunkfix');
+                    currentUrl.searchParams.delete('_rsc');
                     history.replaceState(null,'',currentUrl.pathname+currentUrl.search+currentUrl.hash);
                     sessionStorage.removeItem(key);
                     count=0;
                   }
                 }catch(_e){}
                 function doReload(){
-                  if(count<2){
+                  if(count<3){
                     sessionStorage.setItem(key,String(count+1));
                     try{
                       var url=new URL(window.location.href);
-                      url.searchParams.set('__chunkfix',Date.now().toString());
-                      window.location.replace(url.toString());
+                      // Netlify varies cache by _rsc; this forces a fresh HTML key when stale chunks are referenced.
+                      url.searchParams.set('__chunkfix','1');
+                      url.searchParams.set('_rsc',Date.now().toString(36));
+                      window.location.replace(url.pathname+url.search+url.hash);
                     }catch(_e){
                       window.location.reload();
                     }

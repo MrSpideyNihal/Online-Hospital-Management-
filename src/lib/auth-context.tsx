@@ -89,28 +89,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [supabase])
 
-    const fetchHospital = useCallback(async (hospitalId: string): Promise<Hospital | null> => {
+    const fetchHospital = useCallback(async (): Promise<Hospital | null> => {
         try {
-            const { data, error } = await supabase
-                .from('hospitals')
-                .select('*')
-                .eq('id', hospitalId)
-                .single()
-            if (error) {
+            const res = await fetch('/api/me/hospital', { cache: 'no-store' })
+            if (!res.ok) {
                 return null
             }
-            return data as Hospital | null
+
+            const data = (await res.json()) as Hospital | null
+            return data
         } catch {
             return null
         }
-    }, [supabase])
+    }, [])
 
     const refreshProfile = useCallback(async () => {
         if (!user) return
         const p = await withTimeout(fetchProfile(user.id, user.email || '', user.user_metadata), 8000)
         setProfile(p)
         if (p?.hospital_id) {
-            const h = await withTimeout(fetchHospital(p.hospital_id), 5000)
+            const h = await withTimeout(fetchHospital(), 5000)
             setHospital(h)
         }
     }, [user, fetchProfile, fetchHospital])
@@ -133,7 +131,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     )
                     setProfile(p)
                     if (p?.hospital_id) {
-                        const h = await withTimeout(fetchHospital(p.hospital_id), 5000)
+                        const h = await withTimeout(fetchHospital(), 5000)
                         setHospital(h)
                     }
                 }
@@ -160,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         )
                         setProfile(p)
                         if (p?.hospital_id) {
-                            const h = await withTimeout(fetchHospital(p.hospital_id), 5000)
+                            const h = await withTimeout(fetchHospital(), 5000)
                             setHospital(h)
                         }
                     } else {
