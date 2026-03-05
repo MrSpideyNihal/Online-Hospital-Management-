@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
@@ -11,18 +12,56 @@ import { ArrowLeft, Loader2, Shield } from 'lucide-react'
 
 function LoginForm() {
     const searchParams = useSearchParams()
+    const router = useRouter()
     const isHospitalRegistration = searchParams.get('type') === 'hospital'
     const redirect = searchParams.get('redirect') || '/dashboard'
+    const authError = searchParams.get('error')
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const supabase = createClient()
+    const { user, profile, isLoading, isSuperAdmin } = useAuth()
+
+    // If already logged in, redirect to appropriate page
+    useEffect(() => {
+        if (!isLoading && user && profile) {
+            if (isSuperAdmin) {
+                router.replace('/admin')
+            } else if (profile.role === 'patient') {
+                router.replace('/patient')
+            } else {
+                router.replace('/dashboard')
+            }
+        }
+    }, [isLoading, user, profile, isSuperAdmin, router])
+
+    // Show auth errors from callback
+    useEffect(() => {
+        if (authError) {
+            const messages: Record<string, string> = {
+                auth_failed: 'Authentication failed. Please try again.',
+                no_code: 'No authorization code received.',
+                exchange_failed: 'Session exchange failed. Please try again.',
+                no_user: 'Could not retrieve user data.',
+                callback_exception: 'An unexpected error occurred during sign-in.',
+            }
+            toast.error(messages[authError] || 'Sign in failed. Please try again.')
+        }
+    }, [authError])
+
+    // Always redirect to production URL, never deploy-preview URLs
+    const getBaseUrl = () => {
+        if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+        if (typeof window !== 'undefined') return window.location.origin
+        return 'https://dentizhub.netlify.app'
+    }
 
     const handleGoogleLogin = async () => {
         setIsGoogleLoading(true)
         try {
+            const baseUrl = getBaseUrl()
             const { error } = await supabase.auth.signInWithOAuth({
                 provider: 'google',
                 options: {
-                    redirectTo: `${window.location.origin}/auth/callback?redirect=${redirect}`,
+                    redirectTo: `${baseUrl}/auth/callback?redirect=${redirect}`,
                 },
             })
             if (error) throw error

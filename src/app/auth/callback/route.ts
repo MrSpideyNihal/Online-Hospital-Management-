@@ -21,12 +21,28 @@ function getSuperAdminEmail(): string | null {
     return process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL || process.env.SUPER_ADMIN_EMAIL || null
 }
 
+// Always use production URL for redirects, never deploy-preview URLs
+function getBaseUrl(requestUrl: string): string {
+    if (process.env.NEXT_PUBLIC_APP_URL) return process.env.NEXT_PUBLIC_APP_URL
+    // Fallback to request origin
+    try {
+        return new URL(requestUrl).origin
+    } catch {
+        return 'https://dentizhub.netlify.app'
+    }
+}
+
 export async function GET(request: Request) {
-    const { searchParams, origin } = new URL(request.url)
+    const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
     const redirect = searchParams.get('redirect') || '/dashboard'
+    const baseUrl = getBaseUrl(request.url)
 
-    if (code) {
+    if (!code) {
+        return NextResponse.redirect(`${baseUrl}/login?error=no_code`)
+    }
+
+    try {
         const cookieStore = await cookies()
         const supabase = createServerClient(
             process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,65 +66,73 @@ export async function GET(request: Request) {
         )
 
         const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (error) {
+            console.error('[Callback] Code exchange failed:', error.message)
+            return NextResponse.redirect(`${baseUrl}/login?error=exchange_failed`)
+        }
 
-        if (!error) {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const admin = getAdminClient()
-                // Use admin client if available (bypasses RLS), fallback to user client
-                const db = admin || supabase
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+            console.error('[Callback] No user after code exchange')
+            return NextResponse.redirect(`${baseUrl}/login?error=no_user`)
+        }
 
-                // Check if profile exists
-                const { data: existingProfile } = await db
-                    .from('profiles')
-                    .select('id, role')
-                    .eq('id', user.id)
-                    .single()
+        const admin = getAdminClient()
+        const db = admin || supabase
 
-                const superAdminEmail = getSuperAdminEmail()
-                const isThisSuperAdmin = !!superAdminEmail && user.email === superAdminEmail
+        // Check if profile exists
+        const { data: existingProfile, error: profileErr } = await db
+            .from('profiles')
+            .select('id, role')
+            .eq('id', user.id)
+            .single()
 
-                if (!existingProfile) {
-                    // First-time login — create profile
-                    const newRole = isThisSuperAdmin ? 'super_admin' : 'patient'
-                    await db.from('profiles').insert({
-                        id: user.id,
-                        email: user.email || '',
-                        full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
-                        avatar_url: user.user_metadata?.avatar_url || '',
-                        role: newRole,
-                    })
+        const superAdminEmail = getSuperAdminEmail()
+        const isThisSuperAdmin = !!superAdminEmail && user.email === superAdminEmail
 
-                    if (isThisSuperAdmin) {
-                        return NextResponse.redirect(`${origin}/admin`)
-                    }
-                    return NextResponse.redirect(`${origin}/patient`)
-                }
+        if (profileErr || !existingProfile) {
+            // First-time login — create profile
+            const newRole = isThisSuperAdmin ? 'super_admin' : 'patient'
+            const { error: insertErr } = await db.from('profiles').upsert({
+                id: user.id,
+                email: user.email || '',
+                full_name: user.user_metadata?.full_name || user.user_metadata?.name || '',
+                avatar_url: user.user_metadata?.avatar_url || '',
+                role: newRole,
+            }, { onConflict: 'id' })
 
-                // Determine effective role: env-var super admin OR DB role
-                const effectiveRole = isThisSuperAdmin ? 'super_admin' : existingProfile.role
-
-                // Upgrade to super_admin in DB if env var says so
-                if (isThisSuperAdmin && existingProfile.role !== 'super_admin') {
-                    await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
-                }
-
-                // Route based on effective role
-                if (effectiveRole === 'super_admin') {
-                    return NextResponse.redirect(`${origin}/admin`)
-                }
-                if (effectiveRole === 'patient') {
-                    return NextResponse.redirect(`${origin}/patient`)
-                }
-                if (['hospital_admin', 'doctor', 'receptionist'].includes(effectiveRole)) {
-                    return NextResponse.redirect(`${origin}/dashboard`)
-                }
+            if (insertErr) {
+                console.error('[Callback] Profile upsert failed:', insertErr.message)
             }
 
-            return NextResponse.redirect(`${origin}${redirect}`)
+            if (isThisSuperAdmin) {
+                return NextResponse.redirect(`${baseUrl}/admin`)
+            }
+            return NextResponse.redirect(`${baseUrl}/patient`)
         }
-    }
 
-    // Auth error - redirect to login with error
-    return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+        // Determine effective role: env-var super admin OR DB role
+        const effectiveRole = isThisSuperAdmin ? 'super_admin' : existingProfile.role
+
+        // Upgrade to super_admin in DB if env var says so
+        if (isThisSuperAdmin && existingProfile.role !== 'super_admin') {
+            await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
+        }
+
+        // Route based on effective role
+        if (effectiveRole === 'super_admin') {
+            return NextResponse.redirect(`${baseUrl}/admin`)
+        }
+        if (effectiveRole === 'patient') {
+            return NextResponse.redirect(`${baseUrl}/patient`)
+        }
+        if (['hospital_admin', 'doctor', 'receptionist'].includes(effectiveRole)) {
+            return NextResponse.redirect(`${baseUrl}/dashboard`)
+        }
+
+        return NextResponse.redirect(`${baseUrl}${redirect}`)
+    } catch (e) {
+        console.error('[Callback] Unexpected error:', e)
+        return NextResponse.redirect(`${baseUrl}/login?error=callback_exception`)
+    }
 }
