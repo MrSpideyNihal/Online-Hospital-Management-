@@ -15,7 +15,7 @@ export async function GET() {
 
         const { data: profile, error: profileErr } = await supabase
             .from('profiles')
-            .select('hospital_id')
+            .select('hospital_id, role')
             .eq('id', user.id)
             .maybeSingle()
 
@@ -23,15 +23,40 @@ export async function GET() {
             return NextResponse.json({ error: profileErr.message }, { status: 500 })
         }
 
-        if (!profile?.hospital_id) {
+        const admin = createAdminClient()
+        let hospitalId = profile?.hospital_id || null
+
+        // Backfill legacy accounts where hospital_admin role exists but hospital_id was not linked.
+        if (!hospitalId && profile?.role === 'hospital_admin') {
+            const { data: ownedHospital, error: ownedErr } = await admin
+                .from('hospitals')
+                .select('id')
+                .eq('owner_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+            if (ownedErr) {
+                return NextResponse.json({ error: ownedErr.message }, { status: 500 })
+            }
+
+            if (ownedHospital?.id) {
+                hospitalId = ownedHospital.id
+                await admin
+                    .from('profiles')
+                    .update({ hospital_id: hospitalId })
+                    .eq('id', user.id)
+            }
+        }
+
+        if (!hospitalId) {
             return NextResponse.json(null)
         }
 
-        const admin = createAdminClient()
         const { data: hospital, error: hospitalErr } = await admin
             .from('hospitals')
             .select('*')
-            .eq('id', profile.hospital_id)
+            .eq('id', hospitalId)
             .maybeSingle()
 
         if (hospitalErr) {

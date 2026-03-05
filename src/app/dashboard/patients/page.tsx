@@ -88,7 +88,10 @@ export default function PatientsPage() {
     }
 
     const handleCreatePatient = () => {
-        if (!hospitalId) return
+        if (!hospitalId) {
+            toast.error('Hospital is not linked to your account yet. Please refresh or sign in again.')
+            return
+        }
         if (!formName.trim()) { toast.error('Patient name is required'); return }
         if (formName.trim().length > 200) { toast.error('Name is too long (max 200 characters)'); return }
         if (formEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) { toast.error('Please enter a valid email'); return }
@@ -115,7 +118,10 @@ export default function PatientsPage() {
     }
 
     const handleDelete = (id: string) => {
-        if (!hospitalId) return
+        if (!hospitalId) {
+            toast.error('Hospital is not linked to your account yet. Please refresh or sign in again.')
+            return
+        }
         deletePatient.mutate({ id, hospitalId }, {
             onSuccess: () => { toast.success('Patient deleted'); setDeleteTarget(null) },
             onError: (e) => toast.error(e.message),

@@ -80,7 +80,10 @@ export default function DoctorsPage() {
     }
 
     const handleCreate = () => {
-        if (!hospitalId) return
+        if (!hospitalId) {
+            toast.error('Hospital is not linked to your account yet. Please refresh or sign in again.')
+            return
+        }
         if (!fName.trim()) { toast.error('Doctor name is required'); return }
         if (!fSpec) { toast.error('Specialization is required'); return }
         if (fExp && (isNaN(Number(fExp)) || Number(fExp) < 0)) { toast.error('Experience must be a positive number'); return }

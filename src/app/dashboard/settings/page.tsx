@@ -52,7 +52,10 @@ export default function SettingsPage() {
     }, [hospital])
 
     const handleSave = (section?: string) => {
-        if (!hospitalId) return
+        if (!hospitalId) {
+            toast.error('Hospital is not linked to your account yet. Please refresh or sign in again.')
+            return
+        }
         // Required field validation
         if ((!section || section === 'general') && !hospitalName.trim()) {
             toast.error('Hospital name is required'); return

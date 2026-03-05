@@ -107,7 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!user) return
         const p = await withTimeout(fetchProfile(user.id, user.email || '', user.user_metadata), 8000)
         setProfile(p)
-        if (p?.hospital_id) {
+        if (p && p.role !== 'patient') {
             const h = await withTimeout(fetchHospital(), 5000)
             setHospital(h)
         }
@@ -130,7 +130,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         8000
                     )
                     setProfile(p)
-                    if (p?.hospital_id) {
+                    if (p && p.role !== 'patient') {
                         const h = await withTimeout(fetchHospital(), 5000)
                         setHospital(h)
                     }
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                             8000
                         )
                         setProfile(p)
-                        if (p?.hospital_id) {
+                        if (p && p.role !== 'patient') {
                             const h = await withTimeout(fetchHospital(), 5000)
                             setHospital(h)
                         }
@@ -200,7 +200,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 user,
                 profile,
                 hospital,
-                hospitalId: profile?.hospital_id ?? null,
+                hospitalId: hospital?.id ?? profile?.hospital_id ?? null,
                 role: profile?.role ?? null,
                 isLoading,
                 isSuperAdmin,

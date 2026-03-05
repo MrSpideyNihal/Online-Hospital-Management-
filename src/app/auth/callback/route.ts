@@ -284,6 +284,24 @@ export async function GET(request: Request) {
             return NextResponse.redirect(`${baseUrl}/dashboard`)
         }
 
+        // Legacy recovery: hospital_admin profiles created before linking hospital_id.
+        if (!isThisSuperAdmin && existingProfile.role === 'hospital_admin' && !existingProfile.hospital_id) {
+            const { data: ownedHospital } = await db
+                .from('hospitals')
+                .select('id')
+                .eq('owner_id', user.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+
+            if (ownedHospital?.id) {
+                await db
+                    .from('profiles')
+                    .update({ hospital_id: ownedHospital.id })
+                    .eq('id', user.id)
+            }
+        }
+
         // Determine effective role: env-var super admin OR DB role
         const effectiveRole = isThisSuperAdmin ? 'super_admin' : existingProfile.role
 
