@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   keywords: ["dental", "hospital", "clinic", "dentist", "appointment", "dental care"],
 }
 
+// Prevent stale prerendered HTML from being cached across deploys.
+export const revalidate = 0
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,17 +25,32 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Recover from stale chunks after deploy: reload once to get fresh HTML */}
+        {/* Recover from stale chunks after deploy: force a cache-busting navigation */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var key='__chunk_reload';
-                var reloaded=sessionStorage.getItem(key);
+                var key='__chunk_reload_count';
+                var count=parseInt(sessionStorage.getItem(key)||'0',10);
+                try{
+                  var currentUrl=new URL(window.location.href);
+                  if(currentUrl.searchParams.has('__chunkfix')){
+                    currentUrl.searchParams.delete('__chunkfix');
+                    history.replaceState(null,'',currentUrl.pathname+currentUrl.search+currentUrl.hash);
+                    sessionStorage.removeItem(key);
+                    count=0;
+                  }
+                }catch(_e){}
                 function doReload(){
-                  if(!reloaded){
-                    sessionStorage.setItem(key,'1');
-                    window.location.reload();
+                  if(count<2){
+                    sessionStorage.setItem(key,String(count+1));
+                    try{
+                      var url=new URL(window.location.href);
+                      url.searchParams.set('__chunkfix',Date.now().toString());
+                      window.location.replace(url.toString());
+                    }catch(_e){
+                      window.location.reload();
+                    }
                   }
                 }
                 window.addEventListener('error',function(e){
@@ -48,7 +66,6 @@ export default function RootLayout({
                   var r=e.reason;
                   if(r&&(r.name==='ChunkLoadError'||(r.message&&(r.message.indexOf('Loading chunk')!==-1||r.message.indexOf('Failed to fetch')!==-1))))doReload();
                 });
-                if(reloaded)sessionStorage.removeItem(key);
               })();
             `,
           }}
