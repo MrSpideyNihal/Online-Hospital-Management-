@@ -34,6 +34,7 @@ import {
     Activity,
     Loader2,
     Hammer,
+    AlertTriangle,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -227,6 +228,17 @@ export default function DashboardLayout({
                         </DropdownMenu>
                     </div>
                 </header>
+
+                {/* Pending Hospital Banner */}
+                {hospital && hospital.status === 'pending' && (
+                    <div className="mx-4 lg:mx-6 mt-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center gap-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                        <div className="text-sm">
+                            <p className="font-medium text-amber-800 dark:text-amber-300">Hospital Pending Approval</p>
+                            <p className="text-amber-700 dark:text-amber-400">Your hospital is under review. You can set up your profile now via Settings. Once approved, your public page will be live at <strong>/hospitals/{hospital.slug}</strong></p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Page Content */}
                 <main className="flex-1 p-4 lg:p-6 overflow-auto">
