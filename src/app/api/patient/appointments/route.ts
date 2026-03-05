@@ -8,13 +8,30 @@ export const revalidate = 0
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
 
+function getLocalToday() {
+  const now = new Date()
+  const yyyy = now.getFullYear()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 function normalizeTime(value: string) {
   return value.length === 5 ? `${value}:00` : value
 }
 
 function isPastDate(value: string) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalToday()
   return value < today
+}
+
+function isPastTimeToday(date: string, time: string) {
+  if (date !== getLocalToday()) return false
+  const [hours, minutes, seconds] = time.split(':').map((part) => Number(part || 0))
+  const now = new Date()
+  const slot = new Date(now)
+  slot.setHours(hours, minutes, Number.isFinite(seconds) ? seconds : 0, 0)
+  return slot.getTime() <= now.getTime()
 }
 
 function getPreferredName(email: string | null | undefined, metadata: Record<string, unknown> | undefined) {
@@ -35,13 +52,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Please sign in to book an appointment.' }, { status: 401 })
     }
 
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profile?.role && profile.role !== 'patient') {
+    if (profileError) {
+      return NextResponse.json({ error: 'Could not verify account role.' }, { status: 500 })
+    }
+
+    if (!profile || profile.role !== 'patient') {
       return NextResponse.json(
         { error: 'Online booking is available from patient accounts only.' },
         { status: 403 }
@@ -79,6 +100,13 @@ export async function POST(request: Request) {
 
     if (!TIME_RE.test(appointmentTime)) {
       return NextResponse.json({ error: 'Invalid appointment time format.' }, { status: 400 })
+    }
+
+    if (isPastTimeToday(appointmentDate, appointmentTime)) {
+      return NextResponse.json(
+        { error: 'Cannot book an appointment in a past time slot today.' },
+        { status: 400 }
+      )
     }
 
     let admin
