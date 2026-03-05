@@ -69,7 +69,7 @@ export default function HomePage() {
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
                 {mounted ? (theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />) : <Moon className="w-4 h-4" />}
               </Button>
-              <Link href="/login">
+              <Link href="/login?redirect=%2Fpatient">
                 <Button variant="ghost" size="sm">Sign In</Button>
               </Link>
               <Link href="/login?type=hospital">
@@ -331,24 +331,24 @@ export default function HomePage() {
               <h4 className="font-semibold mb-3">For Patients</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/" className="hover:text-primary transition-colors">Find Hospitals</Link></li>
-                <li><Link href="/login" className="hover:text-primary transition-colors">Book Appointment</Link></li>
-                <li><Link href="/login" className="hover:text-primary transition-colors">My Records</Link></li>
+                <li><Link href="/login?redirect=%2Fpatient%2Fappointments%3Fbook%3D1" className="hover:text-primary transition-colors">Book Appointment</Link></li>
+                <li><Link href="/login?redirect=%2Fpatient%2Fhistory" className="hover:text-primary transition-colors">My Records</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-3">For Hospitals</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><Link href="/login?type=hospital" className="hover:text-primary transition-colors">Register</Link></li>
-                <li><Link href="/login" className="hover:text-primary transition-colors">Admin Login</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Pricing</Link></li>
+                <li><Link href="/login?redirect=%2Fdashboard" className="hover:text-primary transition-colors">Admin Login</Link></li>
+                <li><Link href="/pricing" className="hover:text-primary transition-colors">Pricing</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-semibold mb-3">Support</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link href="#" className="hover:text-primary transition-colors">Help Center</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-                <li><Link href="#" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                <li><Link href="/help" className="hover:text-primary transition-colors">Help Center</Link></li>
+                <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
               </ul>
             </div>
           </div>

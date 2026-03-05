@@ -35,6 +35,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Please sign in to book an appointment.' }, { status: 401 })
     }
 
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.role && profile.role !== 'patient') {
+      return NextResponse.json(
+        { error: 'Online booking is available from patient accounts only.' },
+        { status: 403 }
+      )
+    }
+
     const body = (await request.json()) as {
       hospitalId?: string
       doctorId?: string
@@ -68,7 +81,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid appointment time format.' }, { status: 400 })
     }
 
-    const admin = createAdminClient()
+    let admin
+    try {
+      admin = createAdminClient()
+    } catch {
+      return NextResponse.json(
+        { error: 'Booking service is temporarily unavailable. Please contact support.' },
+        { status: 503 }
+      )
+    }
 
     const { data: hospital } = await admin
       .from('hospitals')
