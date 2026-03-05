@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Generate unique build IDs to prevent stale chunk references
+  generateBuildId: async () => {
+    return `build-${Date.now()}`
+  },
 };
 
 export default nextConfig;
