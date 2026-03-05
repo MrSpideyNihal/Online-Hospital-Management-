@@ -22,7 +22,7 @@ import jsPDF from 'jspdf'
 
 export default function PrescriptionsPage() {
     const { hospitalId, hospital } = useAuth()
-    const { data: prescriptions = [], isLoading } = usePrescriptions(hospitalId)
+    const { data: prescriptions = [], isLoading, isError } = usePrescriptions(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createPrescription = useCreatePrescription()
@@ -112,6 +112,7 @@ export default function PrescriptionsPage() {
         // Medicines rows
         doc.setFont('helvetica', 'normal')
         ;(rx.medicines || []).forEach((med: Medicine, i: number) => {
+            if (y > 265) { doc.addPage(); y = 20 }
             doc.text(`${i + 1}`, 18, y)
             doc.text(med.name || '', 28, y)
             doc.text(med.dosage || '', 90, y)
@@ -163,6 +164,8 @@ export default function PrescriptionsPage() {
         if (!hospitalId || !fPatient || !fDoctor) { toast.error('Patient and Doctor are required'); return }
         const validMeds = medicines.filter(m => m.name.trim())
         if (validMeds.length === 0) { toast.error('Add at least one medicine'); return }
+        const incompleteMed = validMeds.find(m => !m.dosage?.trim() || !m.frequency?.trim() || !m.duration?.trim())
+        if (incompleteMed) { toast.error(`Complete all fields for medicine: ${incompleteMed.name}`); return }
         createPrescription.mutate({
             hospital_id: hospitalId,
             patient_id: fPatient,
@@ -178,6 +181,10 @@ export default function PrescriptionsPage() {
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
+
+    if (isError) {
+        return <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3"><p className="text-destructive">Failed to load prescriptions.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
     }
 
     return (

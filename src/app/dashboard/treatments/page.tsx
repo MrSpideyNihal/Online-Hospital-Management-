@@ -35,7 +35,7 @@ const TREATMENT_TYPES = [
 
 export default function TreatmentsPage() {
     const { hospitalId, user } = useAuth()
-    const { data: treatments = [], isLoading } = useTreatments(hospitalId)
+    const { data: treatments = [], isLoading, isError } = useTreatments(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const createTreatment = useCreateTreatment()
     const updateTreatment = useUpdateTreatment()
@@ -61,6 +61,10 @@ export default function TreatmentsPage() {
     const handleCreate = () => {
         if (!hospitalId || !fPatient || !fType) {
             toast.error('Patient and treatment type are required')
+            return
+        }
+        if (fEstCost && parseFloat(fEstCost) < 0) {
+            toast.error('Estimated cost cannot be negative')
             return
         }
         createTreatment.mutate({
@@ -109,6 +113,10 @@ export default function TreatmentsPage() {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
     }
 
+    if (isError) {
+        return <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3"><p className="text-destructive">Failed to load treatments.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
+    }
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -146,7 +154,7 @@ export default function TreatmentsPage() {
                                 </div>
                                 <div className="space-y-1.5">
                                     <Label>Estimated Cost (₹)</Label>
-                                    <Input type="number" placeholder="e.g., 5000" value={fEstCost} onChange={e => setFEstCost(e.target.value)} />
+                                    <Input type="number" placeholder="e.g., 5000" min={0} value={fEstCost} onChange={e => setFEstCost(e.target.value)} />
                                 </div>
                             </div>
                             <div className="space-y-1.5">

@@ -37,7 +37,7 @@ export default function AdminHospitalsPage() {
     const [search, setSearch] = useState('')
     const [filterStatus, setFilterStatus] = useState('all')
 
-    const { data: hospitals, isLoading } = useAllHospitals()
+    const { data: hospitals, isLoading, isError } = useAllHospitals()
     const approve = useApproveHospital()
     const rejectMut = useRejectHospital()
     const freeze = useFreezeHospital()
@@ -58,6 +58,10 @@ export default function AdminHospitalsPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         )
+    }
+
+    if (isError) {
+        return <div className="flex flex-col items-center justify-center py-20 gap-3"><p className="text-destructive">Failed to load hospitals.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
     }
 
     return (

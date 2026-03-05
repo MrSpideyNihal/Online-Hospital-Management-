@@ -11,7 +11,7 @@ import { useAllHospitals, useApproveHospital, useRejectHospital } from '@/lib/su
 import { toast } from 'sonner'
 
 export default function SuperAdminDashboard() {
-    const { data: hospitals, isLoading } = useAllHospitals()
+    const { data: hospitals, isLoading, isError } = useAllHospitals()
     const approve = useApproveHospital()
     const reject = useRejectHospital()
 
@@ -30,6 +30,10 @@ export default function SuperAdminDashboard() {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         )
+    }
+
+    if (isError) {
+        return <div className="flex flex-col items-center justify-center py-20 gap-3"><p className="text-destructive">Failed to load dashboard data.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
     }
 
     return (

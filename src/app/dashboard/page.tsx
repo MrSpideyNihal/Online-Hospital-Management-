@@ -35,8 +35,8 @@ export default function DashboardPage() {
     const today = new Date().toISOString().split('T')[0]
 
     const { data: stats, isLoading: statsLoading, isError: statsError } = useDashboardStats(hospitalId)
-    const { data: appointments, isLoading: apptsLoading, isError: apptsError } = useAppointments(hospitalId, { date: today })
-    const { data: visits, isLoading: visitsLoading } = useVisits(hospitalId, today)
+    const { data: appointments, isLoading: apptsLoading, isError: apptsError } = useAppointments(hospitalId, { date: today, limit: 5 })
+    const { data: visits, isLoading: visitsLoading } = useVisits(hospitalId, today, 10)
 
     const statCards = [
         { title: "Today's Patients", value: stats?.todayVisits ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },

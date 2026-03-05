@@ -16,7 +16,7 @@ const typeColors: Record<string, string> = {
 
 export default function AdminNotificationsPage() {
     const { user } = useAuth()
-    const { data: notifications, isLoading } = useNotifications(user?.id ?? null)
+    const { data: notifications, isLoading, isError } = useNotifications(user?.id ?? null)
     const markRead = useMarkNotificationRead()
 
     if (isLoading) {
@@ -25,6 +25,10 @@ export default function AdminNotificationsPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         )
+    }
+
+    if (isError) {
+        return <div className="flex flex-col items-center justify-center py-20 gap-3"><p className="text-destructive">Failed to load notifications.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
     }
 
     const items = notifications || []

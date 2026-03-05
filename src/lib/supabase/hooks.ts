@@ -160,7 +160,7 @@ export function useUpdateDoctor() {
 // APPOINTMENTS
 // ============================================================
 
-export function useAppointments(hospitalId: string | null, filters?: { date?: string; status?: string; doctorId?: string }) {
+export function useAppointments(hospitalId: string | null, filters?: { date?: string; status?: string; doctorId?: string; limit?: number }) {
     return useQuery({
         queryKey: ['appointments', hospitalId, filters],
         queryFn: async () => {
@@ -175,6 +175,7 @@ export function useAppointments(hospitalId: string | null, filters?: { date?: st
             if (filters?.date) query = query.eq('appointment_date', filters.date)
             if (filters?.status && filters.status !== 'all') query = query.eq('status', filters.status)
             if (filters?.doctorId) query = query.eq('doctor_id', filters.doctorId)
+            if (filters?.limit) query = query.limit(filters.limit)
 
             const { data, error } = await query
             if (error) throw error
@@ -225,9 +226,9 @@ export function useUpdateAppointment() {
 // VISITS (OPD)
 // ============================================================
 
-export function useVisits(hospitalId: string | null, date?: string) {
+export function useVisits(hospitalId: string | null, date?: string, limit?: number) {
     return useQuery({
-        queryKey: ['visits', hospitalId, date],
+        queryKey: ['visits', hospitalId, date, limit],
         queryFn: async () => {
             if (!hospitalId) return []
             let query = supabase
@@ -237,6 +238,7 @@ export function useVisits(hospitalId: string | null, date?: string) {
                 .order('queue_number', { ascending: true })
 
             if (date) query = query.gte('created_at', `${date}T00:00:00`).lte('created_at', `${date}T23:59:59`)
+            if (limit) query = query.limit(limit)
 
             const { data, error } = await query
             if (error) throw error
@@ -514,7 +516,6 @@ export function useSearchHospitals(searchQuery: string, city?: string) {
 
             const { data, error } = await q
             if (error) {
-                console.warn('[Hooks] Search hospitals error:', error.message)
                 return [] as Hospital[]
             }
             return data as Hospital[]
@@ -711,20 +712,18 @@ export function useDashboardStats(hospitalId: string | null) {
             if (!hospitalId) return null
             const today = new Date().toISOString().split('T')[0]
 
-            const [patientsRes, doctorsRes, todayApptsRes, todayVisitsRes, allInvoicesRes, todayInvoicesRes] = await Promise.all([
+            const [patientsRes, doctorsRes, todayApptsRes, todayVisitsRes, pendingInvoicesRes, todayPaidRes] = await Promise.all([
                 supabase.from('patients').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId),
                 supabase.from('doctors').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).eq('is_active', true),
                 supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).eq('appointment_date', today),
                 supabase.from('visits').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).gte('created_at', `${today}T00:00:00`),
-                supabase.from('invoices').select('total, payment_status').eq('hospital_id', hospitalId),
-                supabase.from('invoices').select('total, payment_status').eq('hospital_id', hospitalId).gte('created_at', `${today}T00:00:00`),
+                supabase.from('invoices').select('total').eq('hospital_id', hospitalId).neq('payment_status', 'paid'),
+                supabase.from('invoices').select('total').eq('hospital_id', hospitalId).eq('payment_status', 'paid').gte('created_at', `${today}T00:00:00`),
             ])
 
-            const todayRevenue = (todayInvoicesRes.data || [])
-                .filter((i: Record<string, unknown>) => i.payment_status === 'paid')
+            const todayRevenue = (todayPaidRes.data || [])
                 .reduce((sum: number, i: Record<string, unknown>) => sum + (Number(i.total) || 0), 0)
-            const pendingPayments = (allInvoicesRes.data || [])
-                .filter((i: Record<string, unknown>) => i.payment_status !== 'paid')
+            const pendingPayments = (pendingInvoicesRes.data || [])
                 .reduce((sum: number, i: Record<string, unknown>) => sum + (Number(i.total) || 0), 0)
 
             return {

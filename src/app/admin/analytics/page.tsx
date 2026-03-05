@@ -1,11 +1,12 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 import { Building2, Users, TrendingUp, Loader2 } from 'lucide-react'
 import { useAllHospitals } from '@/lib/supabase/hooks'
 
 export default function AdminAnalyticsPage() {
-    const { data: hospitals, isLoading } = useAllHospitals()
+    const { data: hospitals, isLoading, isError } = useAllHospitals()
 
     const all = hospitals || []
     const approved = all.filter(h => h.status === 'approved')
@@ -36,6 +37,10 @@ export default function AdminAnalyticsPage() {
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
         )
+    }
+
+    if (isError) {
+        return <div className="flex flex-col items-center justify-center py-20 gap-3"><p className="text-destructive">Failed to load analytics.</p><Button variant="outline" onClick={() => window.location.reload()}>Retry</Button></div>
     }
 
     return (

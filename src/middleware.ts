@@ -41,9 +41,23 @@ export async function middleware(request: NextRequest) {
     // IMPORTANT: This refreshes the auth token if expired.
     // Without this, the client-side auth will not detect the session.
     try {
-        await supabase.auth.getUser()
+        const { data: { user } } = await supabase.auth.getUser()
+
+        // Route protection: redirect unauthenticated users away from protected pages
+        const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/patient')
+        if (isProtected && !user) {
+            const loginUrl = request.nextUrl.clone()
+            loginUrl.pathname = '/login'
+            return NextResponse.redirect(loginUrl)
+        }
     } catch {
-        // Auth refresh failed — continue without blocking the request
+        // Auth refresh failed — redirect to login for protected routes
+        const isProtected = pathname.startsWith('/dashboard') || pathname.startsWith('/admin') || pathname.startsWith('/patient')
+        if (isProtected) {
+            const loginUrl = request.nextUrl.clone()
+            loginUrl.pathname = '/login'
+            return NextResponse.redirect(loginUrl)
+        }
     }
 
     return supabaseResponse

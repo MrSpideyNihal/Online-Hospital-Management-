@@ -13,7 +13,7 @@ import { formatDate } from '@/lib/utils'
 const supabase = createClient()
 
 export default function PatientDashboard() {
-    const { user, profile } = useAuth()
+    const { user, profile, isLoading: authLoading } = useAuth()
 
     // Fetch patient's appointments (via their profile email across all hospitals)
     const { data: appointments = [], isLoading: loadingAppts } = useQuery({
@@ -72,6 +72,10 @@ export default function PatientDashboard() {
     const upcomingAppts = appointments.filter((a: Record<string, unknown>) =>
         (a.appointment_date as string) >= new Date().toISOString().split('T')[0] && a.status !== 'cancelled'
     )
+
+    if (authLoading) {
+        return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
+    }
 
     return (
         <div className="space-y-6">

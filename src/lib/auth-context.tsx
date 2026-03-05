@@ -71,24 +71,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         .select('*')
                         .single()
                     if (createErr) {
-                        console.warn('[Auth] Profile create failed (RLS?):', createErr.message)
                         return { ...newProfile, hospital_id: null, phone: null, is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as unknown as Profile
                     }
                     return created as Profile | null
                 } catch (e) {
-                    console.warn('[Auth] Profile create exception:', e)
                     return null
                 }
             }
 
             if (error) {
-                console.warn('[Auth] Profile fetch error:', error.message)
                 return null
             }
 
             return data as Profile | null
         } catch (e) {
-            console.warn('[Auth] Profile fetch exception:', e)
             return null
         }
     }, [supabase])
@@ -101,12 +97,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 .eq('id', hospitalId)
                 .single()
             if (error) {
-                console.warn('[Auth] Hospital fetch error:', error.message)
                 return null
             }
             return data as Hospital | null
         } catch (e) {
-            console.warn('[Auth] Hospital fetch exception:', e)
             return null
         }
     }, [supabase])
@@ -144,7 +138,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 }
             } catch (e) {
-                console.warn('[Auth] Bootstrap getSession error:', e)
+                // Bootstrap error — continue without session
             } finally {
                 initDone.current = true
                 setIsLoading(false)
@@ -174,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setHospital(null)
                     }
                 } catch (e) {
-                    console.warn('[Auth] State change error:', e)
+                    // Auth state change error — continue
                 } finally {
                     initDone.current = true
                     setIsLoading(false)
@@ -192,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             await supabase.auth.signOut()
         } catch (e) {
-            console.warn('[Auth] Sign out error:', e)
+            // Sign out error — clear local state anyway
         }
         setUser(null)
         setProfile(null)
