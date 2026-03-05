@@ -1,6 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+function applyNoStoreHeaders(response: NextResponse) {
+    // Prevent stale HTML shells from being cached by browser/CDN layers.
+    response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+    response.headers.set('CDN-Cache-Control', 'no-store')
+    response.headers.set('Netlify-CDN-Cache-Control', 'no-store')
+    response.headers.set('Surrogate-Control', 'no-store')
+    response.headers.set('x-middleware-cache', 'no-cache')
+    return response
+}
+
 export async function middleware(request: NextRequest) {
     const { pathname, searchParams } = request.nextUrl
 
@@ -9,7 +21,7 @@ export async function middleware(request: NextRequest) {
         const cleanUrl = request.nextUrl.clone()
         cleanUrl.searchParams.delete('code')
         cleanUrl.searchParams.delete('redirect')
-        return NextResponse.redirect(cleanUrl)
+        return applyNoStoreHeaders(NextResponse.redirect(cleanUrl))
     }
 
     // Create a response that we can modify (to set refreshed cookies)
@@ -48,7 +60,7 @@ export async function middleware(request: NextRequest) {
         if (isProtected && !user) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
-            return NextResponse.redirect(loginUrl)
+            return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     } catch {
         // Auth refresh failed — redirect to login for protected routes
@@ -56,16 +68,11 @@ export async function middleware(request: NextRequest) {
         if (isProtected) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
-            return NextResponse.redirect(loginUrl)
+            return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     }
 
-    // Prevent browsers/CDN from caching HTML pages (stale chunk 404s after deploy)
-    supabaseResponse.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
-    supabaseResponse.headers.set('Pragma', 'no-cache')
-    supabaseResponse.headers.set('Expires', '0')
-
-    return supabaseResponse
+    return applyNoStoreHeaders(supabaseResponse)
 }
 
 export const config = {
