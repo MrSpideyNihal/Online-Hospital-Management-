@@ -104,6 +104,9 @@ function LoginForm() {
                 provider: 'google',
                 options: {
                     redirectTo: `${baseUrl}/auth/callback?${callbackParams.toString()}`,
+                    queryParams: {
+                        prompt: 'select_account',
+                    },
                 },
             })
             if (error) throw error
