@@ -88,6 +88,31 @@ export default function RootLayout({
                 function hasChunkMsg(m){
                   return /ChunkLoadError|Loading chunk|Loading CSS chunk|MIME type|Failed to fetch dynamically imported module/.test(m||'');
                 }
+                function reportDebug(kind,data){
+                  try{
+                    var payload={
+                      kind:kind,
+                      href:location.href,
+                      userAgent:navigator.userAgent,
+                      timestamp:new Date().toISOString(),
+                      buildId:(window.__NEXT_DATA__&&window.__NEXT_DATA__.buildId)||null,
+                      data:data||{}
+                    };
+                    var body=JSON.stringify(payload);
+                    if(navigator.sendBeacon){
+                      var blob=new Blob([body],{type:'application/json'});
+                      navigator.sendBeacon('/api/debug/chunk-error',blob);
+                    }else{
+                      fetch('/api/debug/chunk-error',{
+                        method:'POST',
+                        headers:{'Content-Type':'application/json'},
+                        body:body,
+                        keepalive:true,
+                        cache:'no-store'
+                      }).catch(function(){});
+                    }
+                  }catch(_){ }
+                }
                 cleanParams();
                 // Layer 1: proactive build-ID check
                 (function(){
@@ -102,7 +127,8 @@ export default function RootLayout({
                       .then(function(r){return r.ok?r.json():null;})
                       .then(function(data){
                         if(data&&data.buildId&&data.buildId!==pageBuildId){
-                          console.warn('[stale-shell] buildId mismatch: page='+pageBuildId+' server='+data.buildId+' → reloading');
+                          reportDebug('build-id-mismatch',{pageBuildId:pageBuildId,serverBuildId:data.buildId});
+                          console.warn('[stale-shell] buildId mismatch: page='+pageBuildId+' server='+data.buildId+' -> reloading');
                           hardReload();
                         }
                       })
@@ -111,19 +137,36 @@ export default function RootLayout({
                 })();
                 // Layer 2: reactive chunk-error handler
                 window.addEventListener('error',function(e){
-                  if(hasChunkMsg(e.message||''))return hardReload();
+                  if(hasChunkMsg(e.message||'')){
+                    reportDebug('window-error',{
+                      message:e.message||'',
+                      filename:e.filename||'',
+                      lineno:e.lineno||0,
+                      colno:e.colno||0
+                    });
+                    return hardReload();
+                  }
                   var t=e.target;
                   if(t&&(t.tagName==='SCRIPT'||t.tagName==='LINK')){
                     var u=t.src||t.href||'';
-                    if(u.indexOf('/_next/')!==-1)hardReload();
+                    if(u.indexOf('/_next/')!==-1){
+                      reportDebug('asset-load-error',{assetUrl:u,tagName:t.tagName||''});
+                      hardReload();
+                    }
                   }
                 },true);
                 window.addEventListener('unhandledrejection',function(e){
                   var r=e.reason||{};
-                  if(r.name==='ChunkLoadError'||hasChunkMsg(r.message||''))hardReload();
+                  if(r.name==='ChunkLoadError'||hasChunkMsg(r.message||'')){
+                    reportDebug('unhandled-rejection',{name:r.name||'',message:r.message||''});
+                    hardReload();
+                  }
                 });
                 window.addEventListener('pageshow',function(e){
-                  if(e.persisted)hardReload();
+                  if(e.persisted){
+                    reportDebug('pageshow-persisted',{});
+                    hardReload();
+                  }
                 });
                 // If stable for 10 s, clear retry state
                 setTimeout(function(){clearState();cleanParams();},10000);

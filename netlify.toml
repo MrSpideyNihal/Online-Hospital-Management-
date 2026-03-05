@@ -10,6 +10,24 @@
   package = "@netlify/plugin-nextjs"
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Stale-shell safety net: if an old HTML shell asks for deleted chunk/css files,
+# serve fallback assets (200 with correct MIME) instead of 404 text/plain.
+# This prevents MIME errors and triggers a hard reload to a fresh shell.
+#
+# NOTE: These are non-forced redirects. Existing real files are served normally.
+# The fallback is only used when the requested file does not exist.
+# ─────────────────────────────────────────────────────────────────────────────
+[[redirects]]
+  from = "/_next/static/chunks/*"
+  to = "/chunk-fallback.js"
+  status = 200
+
+[[redirects]]
+  from = "/_next/static/css/*"
+  to = "/chunk-fallback.css"
+  status = 200
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HTML pages / API routes — NEVER cache on CDN or browser.
 #
 # `Netlify-CDN-Cache-Control: no-store` is the authoritative header for
@@ -45,3 +63,19 @@
     Netlify-CDN-Cache-Control = "public, max-age=31536000, immutable"
     Pragma = ""
     Expires = ""
+
+[[headers]]
+  for = "/chunk-fallback.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    CDN-Cache-Control = "no-store"
+    Netlify-CDN-Cache-Control = "no-store"
+    Surrogate-Control = "no-store"
+
+[[headers]]
+  for = "/chunk-fallback.css"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    CDN-Cache-Control = "no-store"
+    Netlify-CDN-Cache-Control = "no-store"
+    Surrogate-Control = "no-store"

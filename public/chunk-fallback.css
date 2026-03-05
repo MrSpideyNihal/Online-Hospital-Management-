@@ -1,0 +1,2 @@
+/* Fallback stylesheet for stale HTML shells requesting deleted CSS assets. */
+/* Intentionally minimal: prevents MIME-type errors while JS fallback triggers reload. */
