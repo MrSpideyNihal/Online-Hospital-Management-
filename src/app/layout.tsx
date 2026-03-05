@@ -27,20 +27,24 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var reloaded = sessionStorage.getItem('chunk-reload');
-                window.addEventListener('error', function(e){
-                  if(
-                    e.message && (
-                      e.message.indexOf('Loading chunk') !== -1 ||
-                      e.message.indexOf('ChunkLoadError') !== -1 ||
-                      e.message.indexOf('Loading CSS chunk') !== -1
-                    ) && !reloaded
-                  ){
-                    sessionStorage.setItem('chunk-reload','1');
+                var key='chunk-reload';
+                var reloaded=sessionStorage.getItem(key);
+                function doReload(){
+                  if(!reloaded){
+                    sessionStorage.setItem(key,'1');
                     window.location.reload();
                   }
+                }
+                window.addEventListener('error',function(e){
+                  var m=e.message||'';
+                  if(m.indexOf('Loading chunk')!==-1||m.indexOf('ChunkLoadError')!==-1||m.indexOf('Loading CSS chunk')!==-1)doReload();
+                  if(e.target&&(e.target.tagName==='SCRIPT'||e.target.tagName==='LINK')&&e.target.src&&e.target.src.indexOf('/_next/')!==-1)doReload();
+                },true);
+                window.addEventListener('unhandledrejection',function(e){
+                  var r=e.reason;
+                  if(r&&(r.name==='ChunkLoadError'||(r.message&&r.message.indexOf('Loading chunk')!==-1)))doReload();
                 });
-                if(reloaded) sessionStorage.removeItem('chunk-reload');
+                if(reloaded)sessionStorage.removeItem(key);
               })();
             `,
           }}
