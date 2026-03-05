@@ -4,6 +4,17 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Stamped at build time by next.config.ts → process.env.NEXT_PUBLIC_BUILD_ID
 const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? 'dev'
 
+const STRIP_QUERY_KEYS = new Set(['redirect', 'code', '__chunkfix', '__chunkts', '_rsc'])
+
+function getSafeReturnPath(request: NextRequest): string {
+    const url = request.nextUrl.clone()
+    for (const key of STRIP_QUERY_KEYS) {
+        url.searchParams.delete(key)
+    }
+    const query = url.searchParams.toString()
+    return query ? `${url.pathname}?${query}` : url.pathname
+}
+
 function applyNoStoreHeaders(response: NextResponse) {
     // Prevent stale HTML shells from being cached by browser/CDN layers.
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
@@ -23,6 +34,16 @@ function applyNoStoreHeaders(response: NextResponse) {
 
 export async function middleware(request: NextRequest) {
     const { pathname, searchParams } = request.nextUrl
+
+    // Normalize stale nested redirect query params from older flows.
+    // Example bad URL: /dashboard?redirect=%2Fpatient
+    // This must never render HTML at that key because it can keep serving
+    // old cached shells with outdated chunk hashes.
+    if (pathname !== '/login' && pathname !== '/auth/callback' && searchParams.has('redirect')) {
+        const cleanUrl = request.nextUrl.clone()
+        cleanUrl.searchParams.delete('redirect')
+        return applyNoStoreHeaders(NextResponse.redirect(cleanUrl))
+    }
 
     // If a non-callback page has a `code` param (stale OAuth code), strip it
     if (pathname !== '/auth/callback' && searchParams.has('code')) {
@@ -68,7 +89,7 @@ export async function middleware(request: NextRequest) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
             loginUrl.search = ''
-            loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`)
+            loginUrl.searchParams.set('redirect', getSafeReturnPath(request))
             return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     } catch {
@@ -78,7 +99,7 @@ export async function middleware(request: NextRequest) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
             loginUrl.search = ''
-            loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`)
+            loginUrl.searchParams.set('redirect', getSafeReturnPath(request))
             return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     }

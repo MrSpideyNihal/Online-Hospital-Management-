@@ -61,6 +61,13 @@ export function sanitizeRedirectPath(rawPath: string | null | undefined, fallbac
 
   try {
     const parsed = new URL(value, 'https://app.local')
+    // Strip nested redirect and stale chunk-fix keys from return paths.
+    parsed.searchParams.delete('redirect')
+    parsed.searchParams.delete('code')
+    parsed.searchParams.delete('__chunkfix')
+    parsed.searchParams.delete('__chunkts')
+    parsed.searchParams.delete('_rsc')
+
     const normalizedPath = parsed.pathname.replace(/\/+$/, '') || '/'
 
     if (normalizedPath !== '/') {
