@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { toast } from 'sonner'
 import {
-    Building2, Palette, MapPin, Globe, QrCode, Save, Upload, Loader2,
+    Building2, Palette, MapPin, Globe, QrCode, Save, Upload, Loader2, ExternalLink,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useUpdateHospital } from '@/lib/supabase/hooks'
@@ -236,8 +236,8 @@ export default function SettingsPage() {
                                 <QrCode className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
                                 <p className="font-medium mb-1">Patient QR Codes</p>
                                 <p className="text-sm text-muted-foreground mb-4">Generate a QR code for any patient from their profile page. When scanned, it shows basic public details (name, last visit, upcoming appointment, allergies).</p>
-                                <Button variant="outline">
-                                    <Globe className="w-4 h-4 mr-1.5" />
+                                <Button variant="outline" onClick={() => window.open('/qr/sample', '_blank')}>
+                                    <ExternalLink className="w-4 h-4 mr-1.5" />
                                     View Sample QR Page
                                 </Button>
                             </div>

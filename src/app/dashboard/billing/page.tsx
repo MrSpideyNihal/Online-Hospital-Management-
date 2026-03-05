@@ -11,10 +11,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
-import { Plus, Loader2, Trash2 } from 'lucide-react'
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Plus, Loader2, Trash2, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { useInvoices, useCreateInvoice, usePatients } from '@/lib/supabase/hooks'
+import { useInvoices, useCreateInvoice, useUpdateInvoice, usePatients } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 import type { InvoiceItem } from '@/types/database'
 
@@ -29,6 +32,14 @@ export default function BillingPage() {
     const { data: invoices = [], isLoading } = useInvoices(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const createInvoice = useCreateInvoice()
+    const updateInvoice = useUpdateInvoice()
+
+    const handlePaymentStatusChange = (id: string, payment_status: string) => {
+        updateInvoice.mutate({ id, payment_status } as any, {
+            onSuccess: () => toast.success(`Invoice marked as ${payment_status}`),
+            onError: (e: Error) => toast.error(e.message),
+        })
+    }
 
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [fPatient, setFPatient] = useState('')
@@ -169,7 +180,19 @@ export default function BillingPage() {
                                         <TableCell className="text-muted-foreground">{formatDate(inv.created_at)}</TableCell>
                                         <TableCell className="font-semibold">{formatCurrency(inv.total)}</TableCell>
                                         <TableCell>
-                                            <Badge variant="secondary" className={`text-xs capitalize ${paymentStatusColors[inv.payment_status] || ''}`}>{inv.payment_status}</Badge>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Badge variant="secondary" className={`text-xs capitalize cursor-pointer hover:opacity-80 ${paymentStatusColors[inv.payment_status] || ''}`}>{inv.payment_status}</Badge>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    {['pending', 'partial', 'paid'].filter(s => s !== inv.payment_status).map(s => (
+                                                        <DropdownMenuItem key={s} onClick={() => handlePaymentStatusChange(inv.id, s)}>
+                                                            {s === 'paid' ? <CheckCircle className="w-4 h-4 mr-2 text-green-600" /> : s === 'partial' ? <AlertCircle className="w-4 h-4 mr-2 text-blue-600" /> : <Clock className="w-4 h-4 mr-2 text-amber-600" />}
+                                                            <span className="capitalize">{s}</span>
+                                                        </DropdownMenuItem>
+                                                    ))}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
                                         </TableCell>
                                     </TableRow>
                                 ))}

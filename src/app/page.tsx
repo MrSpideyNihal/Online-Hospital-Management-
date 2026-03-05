@@ -35,7 +35,7 @@ export default function HomePage() {
   useEffect(() => { setMounted(true) }, [])
 
   // Fetch live approved hospitals based on search; default shows all approved when query=""
-  const { data: hospitals = [], isError } = useSearchHospitals(searchQuery || ' ', selectedCity || undefined)
+  const { data: hospitals = [], isError } = useSearchHospitals(searchQuery || '', selectedCity || undefined)
 
   // Client-side fallback filter for empty query
   const filteredHospitals = isError ? [] : (searchQuery || selectedCity

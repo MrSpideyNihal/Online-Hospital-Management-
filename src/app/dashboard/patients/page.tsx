@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -38,7 +39,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { usePatients, useCreatePatient, useDeletePatient } from '@/lib/supabase/hooks'
+import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 import type { Patient } from '@/types/database'
 
@@ -48,8 +49,21 @@ export default function PatientsPage() {
     const createPatient = useCreatePatient()
     const deletePatient = useDeletePatient()
 
+    const updatePatient = useUpdatePatient()
+    const searchParams = useSearchParams()
+
     const [search, setSearch] = useState('')
+    const [page, setPage] = useState(0)
+    const PAGE_SIZE = 15
     const [isAddOpen, setIsAddOpen] = useState(false)
+
+    // Auto-open create dialog from quick action link
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') setIsAddOpen(true)
+    }, [searchParams])
+    const [isEditOpen, setIsEditOpen] = useState(false)
+    const [editingPatient, setEditingPatient] = useState<Patient | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<Patient | null>(null)
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null)
     const [qrPatient, setQrPatient] = useState<Patient | null>(null)
 
@@ -101,9 +115,56 @@ export default function PatientsPage() {
     const handleDelete = (id: string) => {
         if (!hospitalId) return
         deletePatient.mutate({ id, hospitalId }, {
-            onSuccess: () => toast.success('Patient deleted'),
+            onSuccess: () => { toast.success('Patient deleted'); setDeleteTarget(null) },
             onError: (e) => toast.error(e.message),
         })
+    }
+
+    const openEdit = (p: Patient) => {
+        setEditingPatient(p)
+        setFormName(p.full_name); setFormEmail(p.email || ''); setFormPhone(p.phone || '')
+        setFormDob(p.date_of_birth || ''); setFormGender(p.gender || ''); setFormBloodGroup(p.blood_group || '')
+        setFormAddress(p.address || ''); setFormCity(p.city || '')
+        setFormEmergencyName(p.emergency_contact_name || ''); setFormEmergencyPhone(p.emergency_contact_phone || '')
+        setFormAllergies((p.allergies || []).join(', ')); setFormMedicalHistory(p.medical_history || '')
+        setIsEditOpen(true)
+    }
+
+    const handleEditPatient = () => {
+        if (!editingPatient || !formName.trim()) { toast.error('Name is required'); return }
+        updatePatient.mutate({
+            id: editingPatient.id,
+            full_name: formName.trim(),
+            email: formEmail || null,
+            phone: formPhone || null,
+            date_of_birth: formDob || null,
+            gender: (formGender as 'male' | 'female' | 'other') || null,
+            blood_group: formBloodGroup || null,
+            address: formAddress || null,
+            city: formCity || null,
+            emergency_contact_name: formEmergencyName || null,
+            emergency_contact_phone: formEmergencyPhone || null,
+            allergies: formAllergies ? formAllergies.split(',').map(a => a.trim()) : [],
+            medical_history: formMedicalHistory || null,
+        }, {
+            onSuccess: () => { toast.success('Patient updated'); setIsEditOpen(false); setEditingPatient(null); resetForm() },
+            onError: (e) => toast.error(e.message),
+        })
+    }
+
+    const handleExport = () => {
+        if (filtered.length === 0) { toast.error('No patients to export'); return }
+        const headers = ['ID', 'Name', 'Email', 'Phone', 'Gender', 'DOB', 'Blood Group', 'City']
+        const rows = filtered.map(p => [
+            p.patient_id_number, p.full_name, p.email || '', p.phone || '',
+            p.gender || '', p.date_of_birth || '', p.blood_group || '', p.city || '',
+        ])
+        const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+        const blob = new Blob([csv], { type: 'text/csv' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a'); a.href = url; a.download = 'patients.csv'; a.click()
+        URL.revokeObjectURL(url)
+        toast.success('Exported ' + filtered.length + ' patients')
     }
 
     const filtered = patients.filter(p =>
@@ -130,7 +191,7 @@ export default function PatientsPage() {
                     <p className="text-muted-foreground">Manage all patient records</p>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={handleExport}>
                         <Download className="w-4 h-4 mr-1.5" /> Export
                     </Button>
                     <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -225,9 +286,7 @@ export default function PatientsPage() {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input placeholder="Search by name, ID, phone, or email..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                         </div>
-                        <Button variant="outline" size="sm">
-                            <Filter className="w-4 h-4 mr-1.5" /> Filters
-                        </Button>
+
                     </div>
                 </CardContent>
             </Card>
@@ -254,7 +313,7 @@ export default function PatientsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filtered.map((patient) => {
+                                {filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE).map((patient) => {
                                     const age = patient.date_of_birth
                                         ? new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear()
                                         : null
@@ -310,10 +369,10 @@ export default function PatientsPage() {
                                                         <DropdownMenuItem onClick={() => setQrPatient(patient)}>
                                                             <QrCode className="w-4 h-4 mr-2" /> QR Code
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => openEdit(patient)}>
                                                             <Edit className="w-4 h-4 mr-2" /> Edit
                                                         </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(patient.id)}>
+                                                        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(patient)}>
                                                             <Trash2 className="w-4 h-4 mr-2" /> Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
@@ -328,12 +387,12 @@ export default function PatientsPage() {
 
                     {/* Pagination */}
                     <div className="flex items-center justify-between px-4 py-3 border-t">
-                        <p className="text-sm text-muted-foreground">Showing 1-{filtered.length} of {filtered.length}</p>
+                        <p className="text-sm text-muted-foreground">Showing {Math.min(page * PAGE_SIZE + 1, filtered.length)}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} of {filtered.length}</p>
                         <div className="flex items-center gap-1">
-                            <Button variant="outline" size="icon" className="h-8 w-8" disabled>
+                            <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 0} onClick={() => setPage(p => p - 1)}>
                                 <ChevronLeft className="w-4 h-4" />
                             </Button>
-                            <Button variant="outline" size="icon" className="h-8 w-8" disabled>
+                            <Button variant="outline" size="icon" className="h-8 w-8" disabled={(page + 1) * PAGE_SIZE >= filtered.length} onClick={() => setPage(p => p + 1)}>
                                 <ChevronRight className="w-4 h-4" />
                             </Button>
                         </div>
@@ -420,6 +479,60 @@ export default function PatientsPage() {
                         <DialogClose asChild>
                             <Button variant="outline">Close</Button>
                         </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Patient Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if (!open) { setEditingPatient(null); resetForm() } }}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>Edit Patient</DialogTitle>
+                        <DialogDescription>Update patient details below.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+                        <div className="space-y-1.5"><Label>Full Name *</Label><Input value={formName} onChange={(e) => setFormName(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={formEmail} onChange={(e) => setFormEmail(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Phone</Label><Input value={formPhone} onChange={(e) => setFormPhone(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Date of Birth</Label><Input type="date" value={formDob} onChange={(e) => setFormDob(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Gender</Label>
+                            <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={formGender} onChange={(e) => setFormGender(e.target.value)}>
+                                <option value="">Select gender</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div className="space-y-1.5"><Label>Blood Group</Label>
+                            <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={formBloodGroup} onChange={(e) => setFormBloodGroup(e.target.value)}>
+                                <option value="">Select</option>{['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                            </select>
+                        </div>
+                        <div className="sm:col-span-2 space-y-1.5"><Label>Address</Label><Input value={formAddress} onChange={(e) => setFormAddress(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>City</Label><Input value={formCity} onChange={(e) => setFormCity(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Emergency Contact</Label><Input value={formEmergencyName} onChange={(e) => setFormEmergencyName(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Emergency Phone</Label><Input value={formEmergencyPhone} onChange={(e) => setFormEmergencyPhone(e.target.value)} /></div>
+                        <div className="space-y-1.5"><Label>Allergies</Label><Input value={formAllergies} onChange={(e) => setFormAllergies(e.target.value)} /></div>
+                        <div className="sm:col-span-2 space-y-1.5"><Label>Medical History</Label><Textarea rows={3} value={formMedicalHistory} onChange={(e) => setFormMedicalHistory(e.target.value)} /></div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleEditPatient} disabled={updatePatient.isPending}>
+                            {updatePatient.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Saving...</> : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation */}
+            <Dialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Delete Patient</DialogTitle>
+                        <DialogDescription>Are you sure you want to delete <strong>{deleteTarget?.full_name}</strong>? This action cannot be undone.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button variant="destructive" onClick={() => deleteTarget && handleDelete(deleteTarget.id)} disabled={deletePatient.isPending}>
+                            {deletePatient.isPending ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Trash2 className="w-4 h-4 mr-1.5" />} Delete
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

@@ -6,6 +6,7 @@ import { Download, TrendingUp, Users, Calendar, IndianRupee, Loader2 } from 'luc
 import { useAuth } from '@/lib/auth-context'
 import { useDashboardStats, useAppointments, useInvoices } from '@/lib/supabase/hooks'
 import { formatCurrency } from '@/lib/utils'
+import { toast } from 'sonner'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
 
 const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#f97316', '#eab308']
@@ -51,13 +52,22 @@ export default function ReportsPage() {
                     <h1 className="text-2xl font-bold">Reports & Analytics</h1>
                     <p className="text-muted-foreground">Insights on your hospital performance</p>
                 </div>
-                <Button variant="outline" size="sm"><Download className="w-4 h-4 mr-1.5" /> Export Report</Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                    const headers = ['Service', 'Count']
+                    const rows = serviceData.map(s => [s.name, String(s.value)])
+                    const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
+                    const blob = new Blob([csv], { type: 'text/csv' })
+                    const url = URL.createObjectURL(blob)
+                    const a = document.createElement('a'); a.href = url; a.download = 'report.csv'; a.click()
+                    URL.revokeObjectURL(url)
+                    toast.success('Report exported')
+                }}><Download className="w-4 h-4 mr-1.5" /> Export Report</Button>
             </div>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                     { title: 'Total Patients', value: String(stats?.totalPatients ?? 0), icon: Users, color: 'text-blue-600' },
-                    { title: 'Appointments (Month)', value: String(stats?.todayAppointments ?? 0), icon: Calendar, color: 'text-purple-600' },
+                    { title: 'Appointments (Today)', value: String(stats?.todayAppointments ?? 0), icon: Calendar, color: 'text-purple-600' },
                     { title: 'Revenue (Today)', value: formatCurrency(stats?.todayRevenue ?? 0), icon: IndianRupee, color: 'text-green-600' },
                     { title: 'Today\'s Visits', value: String(stats?.todayVisits ?? 0), icon: TrendingUp, color: 'text-amber-600' },
                 ].map((stat) => (

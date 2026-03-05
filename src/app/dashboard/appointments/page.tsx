@@ -1,7 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,8 +19,11 @@ import {
 import {
     CalendarPlus, Clock, CheckCircle, XCircle, AlertCircle, Loader2,
 } from 'lucide-react'
+import {
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { useAuth } from '@/lib/auth-context'
-import { useAppointments, useCreateAppointment, usePatients, useDoctors } from '@/lib/supabase/hooks'
+import { useAppointments, useCreateAppointment, useUpdateAppointment, usePatients, useDoctors } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
@@ -36,6 +40,7 @@ export default function AppointmentsPage() {
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createAppointment = useCreateAppointment()
+    const updateAppointment = useUpdateAppointment()
 
     const [filter, setFilter] = useState('all')
     const [search, setSearch] = useState('')
@@ -44,6 +49,12 @@ export default function AppointmentsPage() {
         return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
     })
     const [isAddOpen, setIsAddOpen] = useState(false)
+    const searchParams = useSearchParams()
+
+    // Auto-open book dialog from quick action link
+    useEffect(() => {
+        if (searchParams.get('action') === 'new') setIsAddOpen(true)
+    }, [searchParams])
 
     // Form state
     const [fPatient, setFPatient] = useState('')
@@ -71,6 +82,13 @@ export default function AppointmentsPage() {
         }, {
             onSuccess: () => { toast.success('Appointment booked'); setIsAddOpen(false); resetForm() },
             onError: (e) => toast.error(e.message),
+        })
+    }
+
+    const handleStatusChange = (id: string, status: string) => {
+        updateAppointment.mutate({ id, status } as any, {
+            onSuccess: () => toast.success(`Appointment ${status.replace('_', ' ')}`),
+            onError: (e: Error) => toast.error(e.message),
         })
     }
 
@@ -202,7 +220,21 @@ export default function AppointmentsPage() {
                                                     </TableCell>
                                                     <TableCell className="text-sm">{apt.reason || '—'}</TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary" className={`${config.color} text-xs`}>{config.label}</Badge>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Badge variant="secondary" className={`${config.color} text-xs cursor-pointer hover:opacity-80`}>{config.label}</Badge>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                {['scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled'].filter(s => s !== apt.status).map(s => {
+                                                                    const sc = STATUS_CONFIG[s]
+                                                                    return (
+                                                                        <DropdownMenuItem key={s} onClick={() => handleStatusChange(apt.id, s)}>
+                                                                            <sc.icon className="w-4 h-4 mr-2" /> {sc.label}
+                                                                        </DropdownMenuItem>
+                                                                    )
+                                                                })}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
                                                     </TableCell>
                                                 </TableRow>
                                             )

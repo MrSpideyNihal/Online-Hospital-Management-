@@ -519,7 +519,7 @@ export function useSearchHospitals(searchQuery: string, city?: string) {
             }
             return data as Hospital[]
         },
-        enabled: searchQuery.length > 0 || !!city,
+        enabled: true,
         retry: 1,
     })
 }
@@ -711,18 +711,19 @@ export function useDashboardStats(hospitalId: string | null) {
             if (!hospitalId) return null
             const today = new Date().toISOString().split('T')[0]
 
-            const [patientsRes, doctorsRes, todayApptsRes, todayVisitsRes, invoicesRes] = await Promise.all([
+            const [patientsRes, doctorsRes, todayApptsRes, todayVisitsRes, allInvoicesRes, todayInvoicesRes] = await Promise.all([
                 supabase.from('patients').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId),
                 supabase.from('doctors').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).eq('is_active', true),
                 supabase.from('appointments').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).eq('appointment_date', today),
                 supabase.from('visits').select('id', { count: 'exact', head: true }).eq('hospital_id', hospitalId).gte('created_at', `${today}T00:00:00`),
                 supabase.from('invoices').select('total, payment_status').eq('hospital_id', hospitalId),
+                supabase.from('invoices').select('total, payment_status').eq('hospital_id', hospitalId).gte('created_at', `${today}T00:00:00`),
             ])
 
-            const todayRevenue = (invoicesRes.data || [])
+            const todayRevenue = (todayInvoicesRes.data || [])
                 .filter((i: Record<string, unknown>) => i.payment_status === 'paid')
                 .reduce((sum: number, i: Record<string, unknown>) => sum + (Number(i.total) || 0), 0)
-            const pendingPayments = (invoicesRes.data || [])
+            const pendingPayments = (allInvoicesRes.data || [])
                 .filter((i: Record<string, unknown>) => i.payment_status !== 'paid')
                 .reduce((sum: number, i: Record<string, unknown>) => sum + (Number(i.total) || 0), 0)
 

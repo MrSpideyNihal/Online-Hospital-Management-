@@ -8,22 +8,30 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
-    DialogTrigger, DialogFooter, DialogClose,
+    DialogTrigger, DialogFooter, DialogClose, DialogDescription,
 } from '@/components/ui/dialog'
 import {
-    Stethoscope, Plus, Search, Clock, IndianRupee, Phone, Mail, Loader2,
+    DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import {
+    Stethoscope, Plus, Search, Clock, IndianRupee, Phone, Mail, Loader2, MoreHorizontal, Edit, Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
-import { useDoctors, useCreateDoctor } from '@/lib/supabase/hooks'
+import { useDoctors, useCreateDoctor, useUpdateDoctor } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
+import type { Doctor } from '@/types/database'
 
 export default function DoctorsPage() {
     const { hospitalId } = useAuth()
     const { data: doctors = [], isLoading } = useDoctors(hospitalId)
     const createDoctor = useCreateDoctor()
+    const updateDoctor = useUpdateDoctor()
 
     const [search, setSearch] = useState('')
     const [isAddOpen, setIsAddOpen] = useState(false)
+    const [isEditOpen, setIsEditOpen] = useState(false)
+    const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null)
+    const [deleteTarget, setDeleteTarget] = useState<Doctor | null>(null)
 
     // Form state
     const [fName, setFName] = useState('')
@@ -35,6 +43,38 @@ export default function DoctorsPage() {
     const [fFee, setFFee] = useState('')
 
     const resetForm = () => { setFName(''); setFEmail(''); setFPhone(''); setFSpec(''); setFQual(''); setFExp(''); setFFee('') }
+
+    const openEditDoctor = (d: Doctor) => {
+        setEditingDoctor(d)
+        setFName(d.full_name); setFEmail(d.email || ''); setFPhone(d.phone || '')
+        setFSpec(d.specialization || ''); setFQual(d.qualification || '')
+        setFExp(String(d.experience_years ?? '')); setFFee(String(d.consultation_fee ?? ''))
+        setIsEditOpen(true)
+    }
+
+    const handleEditDoctor = () => {
+        if (!editingDoctor || !fName.trim()) { toast.error('Name is required'); return }
+        updateDoctor.mutate({
+            id: editingDoctor.id,
+            full_name: fName.trim(),
+            email: fEmail || null,
+            phone: fPhone || null,
+            specialization: fSpec || null,
+            qualification: fQual || null,
+            experience_years: fExp ? parseInt(fExp) : 0,
+            consultation_fee: fFee ? parseInt(fFee) : 0,
+        }, {
+            onSuccess: () => { toast.success('Doctor updated'); setIsEditOpen(false); setEditingDoctor(null); resetForm() },
+            onError: (e) => toast.error(e.message),
+        })
+    }
+
+    const handleToggleActive = (d: Doctor) => {
+        updateDoctor.mutate({ id: d.id, is_active: !d.is_active }, {
+            onSuccess: () => toast.success(d.is_active ? 'Doctor deactivated' : 'Doctor activated'),
+            onError: (e) => toast.error(e.message),
+        })
+    }
 
     const handleCreate = () => {
         if (!hospitalId || !fName.trim()) { toast.error('Name is required'); return }
@@ -133,9 +173,22 @@ export default function DoctorsPage() {
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-semibold">{doc.full_name}</h3>
-                                        <Badge variant={doc.is_active ? 'default' : 'secondary'} className={`text-[10px] ${doc.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}`}>
-                                            {doc.is_active ? 'Active' : 'Inactive'}
-                                        </Badge>
+                                        <div className="flex items-center gap-1">
+                                            <Badge variant={doc.is_active ? 'default' : 'secondary'} className={`text-[10px] ${doc.is_active ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : ''}`}>
+                                                {doc.is_active ? 'Active' : 'Inactive'}
+                                            </Badge>
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7"><MoreHorizontal className="w-4 h-4" /></Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuItem onClick={() => openEditDoctor(doc)}><Edit className="w-4 h-4 mr-2" /> Edit</DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => handleToggleActive(doc)}>
+                                                        {doc.is_active ? <><Trash2 className="w-4 h-4 mr-2" /> Deactivate</> : <><Stethoscope className="w-4 h-4 mr-2" /> Activate</>}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </div>
                                     </div>
                                     <p className="text-sm text-primary font-medium">{doc.specialization || 'General'}</p>
                                     <p className="text-xs text-muted-foreground">{doc.qualification || '—'} &middot; {doc.experience_years ?? 0} years exp.</p>
@@ -163,6 +216,44 @@ export default function DoctorsPage() {
                 ))}
             </div>
             )}
+
+            {/* Edit Doctor Dialog */}
+            <Dialog open={isEditOpen} onOpenChange={(open) => { setIsEditOpen(open); if (!open) { setEditingDoctor(null); resetForm() } }}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle>Edit Doctor</DialogTitle>
+                        <DialogDescription>Update doctor details below.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5"><Label>Full Name *</Label><Input value={fName} onChange={e => setFName(e.target.value)} /></div>
+                            <div className="space-y-1.5"><Label>Email</Label><Input type="email" value={fEmail} onChange={e => setFEmail(e.target.value)} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5"><Label>Phone</Label><Input value={fPhone} onChange={e => setFPhone(e.target.value)} /></div>
+                            <div className="space-y-1.5"><Label>Specialization</Label>
+                                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fSpec} onChange={e => setFSpec(e.target.value)}>
+                                    <option value="">Select</option>
+                                    <option>General Dentistry</option><option>Endodontics</option><option>Orthodontics</option>
+                                    <option>Prosthodontics</option><option>Periodontics</option><option>Oral Surgery</option>
+                                    <option>Pediatric Dentistry</option><option>Cosmetic Dentistry</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5"><Label>Qualification</Label><Input value={fQual} onChange={e => setFQual(e.target.value)} /></div>
+                            <div className="space-y-1.5"><Label>Experience (years)</Label><Input type="number" value={fExp} onChange={e => setFExp(e.target.value)} /></div>
+                        </div>
+                        <div className="space-y-1.5"><Label>Consultation Fee (₹)</Label><Input type="number" value={fFee} onChange={e => setFFee(e.target.value)} /></div>
+                    </div>
+                    <DialogFooter>
+                        <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
+                        <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleEditDoctor} disabled={updateDoctor.isPending}>
+                            {updateDoctor.isPending ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Saving...</> : 'Save Changes'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

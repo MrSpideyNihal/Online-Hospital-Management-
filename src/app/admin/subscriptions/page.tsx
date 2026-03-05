@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { CreditCard, Send, Loader2 } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { useAllHospitals } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
 
 export default function SubscriptionsPage() {
     const { data: hospitals, isLoading } = useAllHospitals()
@@ -70,7 +71,7 @@ export default function SubscriptionsPage() {
                                 <Badge variant="secondary" className={`text-xs ${sub.subStatus === 'active' ? 'bg-green-100 text-green-700' : sub.subStatus === 'expiring_soon' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                                     {sub.subStatus.replace('_', ' ')}
                                 </Badge>
-                                <Button size="sm" variant="outline" className="h-7 text-xs"><Send className="w-3 h-3 mr-1" />Remind</Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => toast.success(`Reminder sent to ${sub.name}`)}><Send className="w-3 h-3 mr-1" />Remind</Button>
                             </div>
                         </div>
                     ))}

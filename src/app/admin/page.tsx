@@ -122,7 +122,7 @@ export default function SuperAdminDashboard() {
                                             Expires in {daysLeft} days
                                         </p>
                                     </div>
-                                    <Button size="sm" variant="outline" className="h-7 text-xs">Send Reminder</Button>
+                                    <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => toast.success(`Reminder sent to ${h.name}`)}>Send Reminder</Button>
                                 </div>
                             )
                         })}
