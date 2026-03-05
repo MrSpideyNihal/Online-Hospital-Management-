@@ -6,8 +6,10 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { MapPin, Phone, Calendar, Clock, ArrowLeft, Mail, Award, Loader2 } from 'lucide-react'
 import { useHospitalBySlug, useDoctors } from '@/lib/supabase/hooks'
+import { useAuth } from '@/lib/auth-context'
 
 export default function HospitalAboutPage() {
+    const { user, profile } = useAuth()
     const { slug } = useParams<{ slug: string }>()
     const { data: hospital, isLoading } = useHospitalBySlug(slug)
     const { data: doctors } = useDoctors(hospital?.id ?? null)
@@ -31,6 +33,15 @@ export default function HospitalAboutPage() {
 
     const pc = hospital.primary_color || '#0ea5e9'
     const sc = hospital.secondary_color || '#6366f1'
+    const patientBookingPath = `/patient/appointments?book=1&hospitalId=${encodeURIComponent(hospital.id)}`
+    const loginWithRedirect = `/login?redirect=${encodeURIComponent(patientBookingPath)}`
+    const bookAppointmentHref = (!user || !profile)
+        ? loginWithRedirect
+        : profile.role === 'patient'
+            ? patientBookingPath
+            : profile.role === 'super_admin'
+                ? '/admin'
+                : '/dashboard/appointments?action=new'
 
     return (
         <div className="min-h-screen bg-background">
@@ -40,7 +51,7 @@ export default function HospitalAboutPage() {
                     <Link href={`/hospitals/${hospital.slug}`} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground">
                         <ArrowLeft className="w-4 h-4" /> Back to {hospital.name}
                     </Link>
-                    <Link href="/login">
+                    <Link href={bookAppointmentHref}>
                         <Button size="sm" style={{ backgroundColor: pc }} className="text-white">
                             <Calendar className="w-4 h-4 mr-1.5" /> Book Appointment
                         </Button>

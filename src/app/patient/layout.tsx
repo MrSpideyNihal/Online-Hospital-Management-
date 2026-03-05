@@ -33,9 +33,9 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
 
     useEffect(() => {
         if (!isLoading && !user) {
-            router.push('/login')
+            router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
         }
-    }, [isLoading, user, router])
+    }, [isLoading, user, pathname, router])
 
     useEffect(() => {
         if (!isLoading && user && profile?.role && profile.role !== 'patient') {

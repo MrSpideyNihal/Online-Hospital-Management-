@@ -11,6 +11,28 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner'
 import { ArrowLeft, Loader2, Shield } from 'lucide-react'
 
+function resolveRedirectForRole(
+    role: 'super_admin' | 'hospital_admin' | 'doctor' | 'receptionist' | 'patient' | null,
+    requestedPath: string
+) {
+    if (role === 'super_admin') {
+        return requestedPath.startsWith('/admin') ? requestedPath : '/admin'
+    }
+
+    if (role && ['hospital_admin', 'doctor', 'receptionist'].includes(role)) {
+        return requestedPath.startsWith('/dashboard') ? requestedPath : '/dashboard'
+    }
+
+    if (role === 'patient') {
+        if (requestedPath.startsWith('/patient') || requestedPath.startsWith('/hospitals')) {
+            return requestedPath
+        }
+        return '/patient'
+    }
+
+    return '/dashboard'
+}
+
 function LoginForm() {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -31,15 +53,10 @@ function LoginForm() {
                 return
             }
 
-            if (isSuperAdmin) {
-                router.replace('/admin')
-            } else if (profile.role === 'patient') {
-                router.replace('/patient')
-            } else {
-                router.replace('/dashboard')
-            }
+            const role = isSuperAdmin ? 'super_admin' : profile.role
+            router.replace(resolveRedirectForRole(role, redirect))
         }
-    }, [isLoading, user, profile, isSuperAdmin, isHospitalRegistration, router])
+    }, [isLoading, user, profile, isSuperAdmin, isHospitalRegistration, redirect, router])
 
     // Show auth errors from callback
     useEffect(() => {

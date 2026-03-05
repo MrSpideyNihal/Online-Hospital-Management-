@@ -1,15 +1,23 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Stamped at build time by next.config.ts → process.env.NEXT_PUBLIC_BUILD_ID
+const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? 'dev'
+
 function applyNoStoreHeaders(response: NextResponse) {
     // Prevent stale HTML shells from being cached by browser/CDN layers.
     response.headers.set('Cache-Control', 'no-cache, no-store, must-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')
+    // Netlify-specific: opt this response entirely out of Durable Cache storage.
     response.headers.set('CDN-Cache-Control', 'no-store')
     response.headers.set('Netlify-CDN-Cache-Control', 'no-store')
     response.headers.set('Surrogate-Control', 'no-store')
     response.headers.set('x-middleware-cache', 'no-cache')
+    // Stamp every response with the current deploy's build ID.
+    // The client-side stale-chunk recovery script compares this to
+    // window.__NEXT_DATA__.buildId and force-reloads if they differ.
+    response.headers.set('x-build-id', BUILD_ID)
     return response
 }
 
@@ -20,7 +28,6 @@ export async function middleware(request: NextRequest) {
     if (pathname !== '/auth/callback' && searchParams.has('code')) {
         const cleanUrl = request.nextUrl.clone()
         cleanUrl.searchParams.delete('code')
-        cleanUrl.searchParams.delete('redirect')
         return applyNoStoreHeaders(NextResponse.redirect(cleanUrl))
     }
 
@@ -60,6 +67,8 @@ export async function middleware(request: NextRequest) {
         if (isProtected && !user) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
+            loginUrl.search = ''
+            loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`)
             return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     } catch {
@@ -68,6 +77,8 @@ export async function middleware(request: NextRequest) {
         if (isProtected) {
             const loginUrl = request.nextUrl.clone()
             loginUrl.pathname = '/login'
+            loginUrl.search = ''
+            loginUrl.searchParams.set('redirect', `${pathname}${request.nextUrl.search}`)
             return applyNoStoreHeaders(NextResponse.redirect(loginUrl))
         }
     }

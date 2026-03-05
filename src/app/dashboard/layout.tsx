@@ -77,13 +77,13 @@ export default function DashboardLayout({
     // Auth guard — redirect to login if not authenticated
     useEffect(() => {
         if (!isLoading && !user) {
-            router.push('/login')
+            router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
         }
         // Redirect patients to patient portal
         if (!isLoading && user && profile?.role === 'patient') {
             router.push('/patient')
         }
-    }, [isLoading, user, profile, router])
+    }, [isLoading, user, profile, pathname, router])
 
     useEffect(() => {
         if (!isLoading && user && profile?.role !== 'patient' && isHospitalLocked) {

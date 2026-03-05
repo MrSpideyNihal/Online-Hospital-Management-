@@ -54,6 +54,28 @@ function getBaseUrl(requestUrl: string): string {
     }
 }
 
+function resolveRedirectForRole(role: string, requestedPath: string): string {
+    const safePath = sanitizeRedirectPath(requestedPath, '/dashboard')
+
+    if (role === 'super_admin') {
+        return safePath.startsWith('/admin') ? safePath : '/admin'
+    }
+
+    if (['hospital_admin', 'doctor', 'receptionist'].includes(role)) {
+        return safePath.startsWith('/dashboard') ? safePath : '/dashboard'
+    }
+
+    if (role === 'patient') {
+        // Patients can land in the patient portal or return to public hospital pages.
+        if (safePath.startsWith('/patient') || safePath.startsWith('/hospitals')) {
+            return safePath
+        }
+        return '/patient'
+    }
+
+    return '/dashboard'
+}
+
 export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const code = searchParams.get('code')
@@ -212,7 +234,7 @@ export async function GET(request: Request) {
             if (isHospitalReg) {
                 return NextResponse.redirect(`${baseUrl}/dashboard`)
             }
-            return NextResponse.redirect(`${baseUrl}/patient`)
+            return NextResponse.redirect(`${baseUrl}${resolveRedirectForRole(newRole, redirect)}`)
         }
 
         // Existing patient can explicitly apply for hospital management from /login?type=hospital.
@@ -335,18 +357,7 @@ export async function GET(request: Request) {
             await db.from('profiles').update({ role: 'super_admin' }).eq('id', user.id)
         }
 
-        // Route based on effective role
-        if (effectiveRole === 'super_admin') {
-            return NextResponse.redirect(`${baseUrl}/admin`)
-        }
-        if (effectiveRole === 'patient') {
-            return NextResponse.redirect(`${baseUrl}/patient`)
-        }
-        if (['hospital_admin', 'doctor', 'receptionist'].includes(effectiveRole)) {
-            return NextResponse.redirect(`${baseUrl}/dashboard`)
-        }
-
-        return NextResponse.redirect(`${baseUrl}${redirect}`)
+        return NextResponse.redirect(`${baseUrl}${resolveRedirectForRole(effectiveRole, redirect)}`)
     } catch (e) {
         console.error('[Callback] Unexpected error:', e)
         return NextResponse.redirect(`${baseUrl}/login?error=callback_exception`)

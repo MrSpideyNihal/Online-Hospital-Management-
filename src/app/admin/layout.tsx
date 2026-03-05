@@ -35,11 +35,11 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     // Auth guard — only super admin can access
     useEffect(() => {
         if (!isLoading && !user) {
-            router.push('/login')
+            router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
         } else if (!isLoading && user && !isSuperAdmin) {
             router.push('/dashboard')
         }
-    }, [isLoading, user, isSuperAdmin, router])
+    }, [isLoading, user, isSuperAdmin, pathname, router])
 
     const handleLogout = async () => {
         await signOut()

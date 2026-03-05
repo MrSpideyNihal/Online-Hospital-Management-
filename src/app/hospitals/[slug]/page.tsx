@@ -9,8 +9,10 @@ import {
     ArrowRight, Loader2,
 } from 'lucide-react'
 import { useHospitalBySlug, useHospitalServices, useDoctors, useTestimonials } from '@/lib/supabase/hooks'
+import { useAuth } from '@/lib/auth-context'
 
 export default function HospitalPublicPage() {
+    const { user, profile } = useAuth()
     const { slug } = useParams<{ slug: string }>()
     const { data: hospital, isLoading } = useHospitalBySlug(slug)
     const { data: services } = useHospitalServices(hospital?.id ?? null)
@@ -36,6 +38,15 @@ export default function HospitalPublicPage() {
 
     const pc = hospital.primary_color || '#0ea5e9'
     const sc = hospital.secondary_color || '#6366f1'
+    const patientBookingPath = `/patient/appointments?book=1&hospitalId=${encodeURIComponent(hospital.id)}`
+    const loginWithRedirect = `/login?redirect=${encodeURIComponent(patientBookingPath)}`
+    const bookAppointmentHref = (!user || !profile)
+        ? loginWithRedirect
+        : profile.role === 'patient'
+            ? patientBookingPath
+            : profile.role === 'super_admin'
+                ? '/admin'
+                : '/dashboard/appointments?action=new'
 
     return (
         <div className="min-h-screen bg-background">
@@ -53,7 +64,7 @@ export default function HospitalPublicPage() {
                         <Link href={`/hospitals/${hospital.slug}/about`}>
                             <Button variant="ghost" size="sm">About</Button>
                         </Link>
-                        <Link href="/login">
+                        <Link href={bookAppointmentHref}>
                             <Button size="sm" style={{ backgroundColor: pc }} className="text-white">
                                 <Calendar className="w-4 h-4 mr-1.5" /> Book Appointment
                             </Button>
@@ -82,7 +93,7 @@ export default function HospitalPublicPage() {
                         {hospital.about_text || 'Welcome to our hospital.'}
                     </p>
                     <div className="flex flex-wrap items-center justify-center gap-3">
-                        <Link href="/login">
+                        <Link href={bookAppointmentHref}>
                             <Button size="lg" style={{ backgroundColor: pc }} className="text-white shadow-lg">
                                 <Calendar className="w-5 h-5 mr-2" /> Book Appointment
                             </Button>
@@ -196,7 +207,7 @@ export default function HospitalPublicPage() {
                         style={{ background: `linear-gradient(135deg, ${pc}, ${sc})` }}>
                         <h2 className="text-3xl font-bold mb-3">Ready to Smile?</h2>
                         <p className="text-white/80 mb-6 max-w-xl mx-auto">Book your appointment today and experience world-class care.</p>
-                        <Link href="/login">
+                        <Link href={bookAppointmentHref}>
                             <Button size="lg" className="bg-white text-gray-900 hover:bg-white/90 shadow-xl">
                                 <Calendar className="w-5 h-5 mr-2" /> Book Now
                             </Button>
