@@ -122,15 +122,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [user, fetchProfile, fetchHospital])
 
     useEffect(() => {
-        // Safety net: if onAuthStateChange never fires, stop loading after 6 seconds
-        const safetyTimeout = setTimeout(() => {
-            if (!initDone.current) {
-                console.warn('[Auth] Safety timeout — forcing isLoading=false')
+        // ── Step 1: Read cached session from localStorage (no lock needed) ──
+        // getSession() is synchronous-ish (reads storage), so it resolves fast
+        // and unblocks the UI immediately. onAuthStateChange._initialize()
+        // acquires a Web Lock which can stall 5+ seconds if a previous instance
+        // didn't release it — so we NEVER wait for it to show the first frame.
+        const bootstrap = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession()
+                const currentUser = session?.user ?? null
+                setUser(currentUser)
+                if (currentUser) {
+                    const p = await withTimeout(
+                        fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata),
+                        8000
+                    )
+                    setProfile(p)
+                    if (p?.hospital_id) {
+                        const h = await withTimeout(fetchHospital(p.hospital_id), 5000)
+                        setHospital(h)
+                    }
+                }
+            } catch (e) {
+                console.warn('[Auth] Bootstrap getSession error:', e)
+            } finally {
                 initDone.current = true
                 setIsLoading(false)
             }
-        }, 6000)
+        }
+        bootstrap()
 
+        // ── Step 2: Subscribe for future auth changes (tab focus, token refresh, sign-out) ──
+        // This may briefly stall on the Web Lock, but the UI is already unblocked above.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event: string, session: { user: User | null } | null) => {
                 try {
@@ -160,7 +183,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
 
         return () => {
-            clearTimeout(safetyTimeout)
             subscription.unsubscribe()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
