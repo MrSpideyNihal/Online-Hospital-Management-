@@ -21,6 +21,31 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Recover from stale chunks after deploy: reload once to get fresh HTML */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function(){
+                var reloaded = sessionStorage.getItem('chunk-reload');
+                window.addEventListener('error', function(e){
+                  if(
+                    e.message && (
+                      e.message.indexOf('Loading chunk') !== -1 ||
+                      e.message.indexOf('ChunkLoadError') !== -1 ||
+                      e.message.indexOf('Loading CSS chunk') !== -1
+                    ) && !reloaded
+                  ){
+                    sessionStorage.setItem('chunk-reload','1');
+                    window.location.reload();
+                  }
+                });
+                if(reloaded) sessionStorage.removeItem('chunk-reload');
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <Providers>
           {children}
