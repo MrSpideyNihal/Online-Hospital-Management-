@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useUpdateHospital } from '@/lib/supabase/hooks'
+import type { Hospital } from '@/types/database'
 
 export default function SettingsPage() {
     const { hospital, hospitalId, refreshProfile } = useAuth()
@@ -48,7 +49,6 @@ export default function SettingsPage() {
             setMission(hospital.mission || '')
             setMapEmbed(hospital.map_embed_url || '')
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hospital])
 
     const handleSave = (section?: string) => {
@@ -80,7 +80,7 @@ export default function SettingsPage() {
         if ((!section || section === 'branding') && (!hexRegex.test(primaryColor) || !hexRegex.test(secondaryColor))) {
             toast.error('Invalid color format. Use hex like #0ea5e9'); return
         }
-        const updates: Record<string, unknown> = {}
+        const updates: Partial<Hospital> = {}
         if (!section || section === 'general') {
             Object.assign(updates, { name: hospitalName, email, phone, about_text: aboutText, mission })
         }
@@ -90,7 +90,7 @@ export default function SettingsPage() {
         if (!section || section === 'location') {
             Object.assign(updates, { address, city, state, pincode, map_embed_url: mapEmbed })
         }
-        updateHospital.mutate({ id: hospitalId, ...updates } as any, {
+        updateHospital.mutate({ id: hospitalId, ...updates }, {
             onSuccess: () => { toast.success('Settings saved successfully!'); refreshProfile() },
             onError: (e) => toast.error(e.message),
         })

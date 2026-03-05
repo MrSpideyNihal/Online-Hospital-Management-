@@ -8,6 +8,31 @@ import type {
 
 const supabase = createClient()
 
+async function parseApiJson<T>(res: Response): Promise<T> {
+    const contentType = res.headers.get('content-type') || ''
+    const isJson = contentType.includes('application/json')
+
+    if (!res.ok) {
+        if (isJson) {
+            try {
+                const payload = (await res.json()) as { error?: string; message?: string }
+                throw new Error(payload.error || payload.message || `Request failed (${res.status})`)
+            } catch (err) {
+                if (err instanceof Error && err.message) throw err
+            }
+        }
+
+        const text = await res.text().catch(() => '')
+        throw new Error(text || res.statusText || `Request failed (${res.status})`)
+    }
+
+    if (!isJson) {
+        throw new Error('Unexpected response from server')
+    }
+
+    return (await res.json()) as T
+}
+
 // ============================================================
 // PATIENTS
 // ============================================================
@@ -538,11 +563,7 @@ export function useAllHospitals(status?: string) {
             const params = new URLSearchParams()
             if (status && status !== 'all') params.set('status', status)
             const res = await fetch(`/api/admin/hospitals?${params.toString()}`)
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.error || 'Failed to fetch hospitals')
-            }
-            return (await res.json()) as Hospital[]
+            return parseApiJson<Hospital[]>(res)
         },
     })
 }
@@ -556,11 +577,7 @@ export function useApproveHospital() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hospitalId, action: 'approve' }),
             })
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.error || 'Failed to approve')
-            }
-            return res.json()
+            return parseApiJson<Hospital>(res)
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
@@ -577,11 +594,7 @@ export function useRejectHospital() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hospitalId, action: 'reject' }),
             })
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.error || 'Failed to reject')
-            }
-            return res.json()
+            return parseApiJson<Hospital>(res)
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
@@ -598,11 +611,7 @@ export function useFreezeHospital() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hospitalId, action: freeze ? 'freeze' : 'unfreeze' }),
             })
-            if (!res.ok) {
-                const err = await res.json()
-                throw new Error(err.error || 'Failed to update')
-            }
-            return res.json()
+            return parseApiJson<Hospital>(res)
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })

@@ -31,7 +31,6 @@ export default function DoctorsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [isEditOpen, setIsEditOpen] = useState(false)
     const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null)
-    const [deleteTarget, setDeleteTarget] = useState<Doctor | null>(null)
 
     // Form state
     const [fName, setFName] = useState('')

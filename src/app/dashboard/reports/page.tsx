@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button'
 import { Download, TrendingUp, Users, Calendar, IndianRupee, Loader2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useDashboardStats, useAppointments, useInvoices } from '@/lib/supabase/hooks'
-import { formatCurrency } from '@/lib/utils'
+import { escapeCsvCell, formatCurrency } from '@/lib/utils'
 import { toast } from 'sonner'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
 const COLORS = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#ec4899', '#f43f5e', '#f97316', '#eab308']
 
@@ -65,7 +65,7 @@ export default function ReportsPage() {
                 <Button variant="outline" size="sm" onClick={() => {
                     const headers = ['Service', 'Count']
                     const rows = serviceData.map(s => [s.name, String(s.value)])
-                    const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+                    const csv = [headers, ...rows].map(r => r.map((c) => escapeCsvCell(c)).join(',')).join('\n')
                     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
                     const url = URL.createObjectURL(blob)
                     const a = document.createElement('a'); a.href = url; a.download = 'report.csv'; a.click()
@@ -142,7 +142,7 @@ export default function ReportsPage() {
                         <p className="text-center text-muted-foreground py-8">No data yet.</p>
                     ) : (
                     <div className="space-y-3">
-                        {serviceData.map((service, i) => {
+                        {serviceData.map((service) => {
                             const maxCount = serviceData[0]?.value || 1
                             const percent = Math.round((service.value / maxCount) * 100)
                             return (

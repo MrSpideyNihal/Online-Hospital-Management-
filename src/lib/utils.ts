@@ -48,6 +48,41 @@ export function isSuperAdmin(email: string | undefined) {
   return email === process.env.SUPER_ADMIN_EMAIL || email === process.env.NEXT_PUBLIC_SUPER_ADMIN_EMAIL
 }
 
+const SAFE_REDIRECT_PREFIXES = ['/dashboard', '/patient', '/admin', '/hospitals', '/login']
+
+export function sanitizeRedirectPath(rawPath: string | null | undefined, fallback = '/dashboard') {
+  const value = (rawPath || '').trim()
+  if (!value) return fallback
+
+  // Only allow local paths and block protocol-relative/escaped variants.
+  if (!value.startsWith('/') || value.startsWith('//') || /[\\\n\r\0]/.test(value)) {
+    return fallback
+  }
+
+  try {
+    const parsed = new URL(value, 'https://app.local')
+    const normalizedPath = parsed.pathname.replace(/\/+$/, '') || '/'
+
+    if (normalizedPath !== '/') {
+      const isAllowed = SAFE_REDIRECT_PREFIXES.some(
+        (prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
+      )
+      if (!isAllowed) return fallback
+    }
+
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`
+  } catch {
+    return fallback
+  }
+}
+
+export function escapeCsvCell(value: unknown) {
+  const raw = String(value ?? '')
+  // Prevent CSV/Excel formula execution when files are opened in spreadsheet apps.
+  const safe = /^[=+\-@]/.test(raw.trimStart()) ? `'${raw}` : raw
+  return `"${safe.replace(/"/g, '""')}"`
+}
+
 export const DENTAL_SERVICES = [
   'General Dentistry',
   'Root Canal Treatment',

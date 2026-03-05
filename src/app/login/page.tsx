@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { useAuth } from '@/lib/auth-context'
+import { sanitizeRedirectPath } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
@@ -14,9 +15,7 @@ function LoginForm() {
     const searchParams = useSearchParams()
     const router = useRouter()
     const isHospitalRegistration = searchParams.get('type') === 'hospital'
-    const rawRedirect = searchParams.get('redirect') || '/dashboard'
-    // Prevent open redirect: only allow relative paths starting with /
-    const redirect = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') ? rawRedirect : '/dashboard'
+    const redirect = sanitizeRedirectPath(searchParams.get('redirect'), '/dashboard')
     const authError = searchParams.get('error')
     const [isGoogleLoading, setIsGoogleLoading] = useState(false)
     const supabase = createClient()
@@ -25,6 +24,12 @@ function LoginForm() {
     // If already logged in, redirect to appropriate page
     useEffect(() => {
         if (!isLoading && user && profile) {
+            // Keep patient users on this page when they explicitly opened hospital registration.
+            // They need to complete OAuth callback with type=hospital to submit their application.
+            if (isHospitalRegistration && profile.role === 'patient' && !isSuperAdmin) {
+                return
+            }
+
             if (isSuperAdmin) {
                 router.replace('/admin')
             } else if (profile.role === 'patient') {
@@ -33,7 +38,7 @@ function LoginForm() {
                 router.replace('/dashboard')
             }
         }
-    }, [isLoading, user, profile, isSuperAdmin, router])
+    }, [isLoading, user, profile, isSuperAdmin, isHospitalRegistration, router])
 
     // Show auth errors from callback
     useEffect(() => {
@@ -44,6 +49,8 @@ function LoginForm() {
                 exchange_failed: 'Session exchange failed. Please try again.',
                 no_user: 'Could not retrieve user data.',
                 callback_exception: 'An unexpected error occurred during sign-in.',
+                hospital_creation_failed: 'Could not create your hospital profile. Please try registration again.',
+                profile_setup_failed: 'Could not complete account setup. Please sign in again.',
             }
             toast.error(messages[authError] || 'Sign in failed. Please try again.')
         }

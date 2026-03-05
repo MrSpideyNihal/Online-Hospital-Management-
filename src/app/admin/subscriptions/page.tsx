@@ -4,9 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CreditCard, Send, Loader2 } from 'lucide-react'
-import { formatDate, formatCurrency } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
 import { useAllHospitals } from '@/lib/supabase/hooks'
-import { toast } from 'sonner'
 
 export default function SubscriptionsPage() {
     const { data: hospitals, isLoading, isError } = useAllHospitals()

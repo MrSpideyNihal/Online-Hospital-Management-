@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
-import { Eye, Plus, Loader2, Trash2, Download } from 'lucide-react'
+import { Plus, Loader2, Trash2, Download } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { usePrescriptions, useCreatePrescription, usePatients, useDoctors } from '@/lib/supabase/hooks'

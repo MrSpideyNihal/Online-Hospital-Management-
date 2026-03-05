@@ -12,11 +12,29 @@ import { formatDate } from '@/lib/utils'
 
 const supabase = createClient()
 
+type PatientAppointmentRow = {
+    id: string
+    reason: string | null
+    appointment_date: string
+    appointment_time: string | null
+    status: string
+    doctors?: { full_name: string | null } | null
+    hospitals?: { name: string | null } | null
+}
+
+type PatientVisitRow = {
+    id: string
+    chief_complaint: string | null
+    visit_date: string
+    status: string
+    doctors?: { full_name: string | null } | null
+}
+
 export default function PatientDashboard() {
     const { user, profile, isLoading: authLoading } = useAuth()
 
     // Fetch patient's appointments (via their profile email across all hospitals)
-    const { data: appointments = [], isLoading: loadingAppts } = useQuery({
+    const { data: appointments = [], isLoading: loadingAppts } = useQuery<PatientAppointmentRow[]>({
         queryKey: ['patient-appointments', user?.id],
         queryFn: async () => {
             if (!user) return []
@@ -33,12 +51,12 @@ export default function PatientDashboard() {
                 .in('patient_id', patientIds)
                 .order('appointment_date', { ascending: false })
                 .limit(10)
-            return appts || []
+            return (appts || []) as PatientAppointmentRow[]
         },
         enabled: !!user,
     })
 
-    const { data: visits = [], isLoading: loadingVisits } = useQuery({
+    const { data: visits = [], isLoading: loadingVisits } = useQuery<PatientVisitRow[]>({
         queryKey: ['patient-visits', user?.id],
         queryFn: async () => {
             if (!user) return []
@@ -54,13 +72,15 @@ export default function PatientDashboard() {
                 .in('patient_id', patientIds)
                 .order('visit_date', { ascending: false })
                 .limit(5)
-            return data || []
+            return (data || []) as PatientVisitRow[]
         },
         enabled: !!user,
     })
 
-    const upcomingAppts = appointments.filter((a: Record<string, unknown>) =>
-        (a.appointment_date as string) >= new Date().toISOString().split('T')[0] && a.status !== 'cancelled'
+    const today = new Date().toISOString().split('T')[0]
+
+    const upcomingAppts = appointments.filter((a) =>
+        a.appointment_date >= today && a.status !== 'cancelled'
     )
 
     if (authLoading) {
@@ -136,7 +156,7 @@ export default function PatientDashboard() {
                         <p className="text-center text-muted-foreground py-8">No upcoming appointments</p>
                     ) : (
                         <div className="space-y-3">
-                            {upcomingAppts.slice(0, 5).map((apt: any) => (
+                            {upcomingAppts.slice(0, 5).map((apt) => (
                                 <div key={apt.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -175,7 +195,7 @@ export default function PatientDashboard() {
                         <p className="text-center text-muted-foreground py-8">No visit records found</p>
                     ) : (
                         <div className="space-y-3">
-                            {visits.map((v: any) => (
+                            {visits.map((v) => (
                                 <div key={v.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                                     <div>
                                         <p className="text-sm font-medium">{v.chief_complaint || 'General Visit'}</p>

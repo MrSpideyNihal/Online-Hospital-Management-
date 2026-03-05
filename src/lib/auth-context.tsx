@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         return { ...newProfile, hospital_id: null, phone: null, is_active: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString() } as unknown as Profile
                     }
                     return created as Profile | null
-                } catch (e) {
+                } catch {
                     return null
                 }
             }
@@ -84,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }
 
             return data as Profile | null
-        } catch (e) {
+        } catch {
             return null
         }
     }, [supabase])
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 return null
             }
             return data as Hospital | null
-        } catch (e) {
+        } catch {
             return null
         }
     }, [supabase])
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setHospital(h)
                     }
                 }
-            } catch (e) {
+            } catch {
                 // Bootstrap error — continue without session
             } finally {
                 initDone.current = true
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                         setProfile(null)
                         setHospital(null)
                     }
-                } catch (e) {
+                } catch {
                     // Auth state change error — continue
                 } finally {
                     initDone.current = true
@@ -185,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         try {
             await supabase.auth.signOut()
-        } catch (e) {
+        } catch {
             // Sign out error — clear local state anyway
         }
         setUser(null)

@@ -111,7 +111,6 @@ export default function TreatmentsPage() {
     const inProgress = treatments.filter((t: any) => t.status === 'in_progress').length
     const completed = treatments.filter((t: any) => t.status === 'completed').length
     const totalEstimated = treatments.reduce((sum: number, t: any) => sum + (Number(t.estimated_cost) || 0), 0)
-    const totalActual = treatments.filter((t: any) => t.status === 'completed').reduce((sum: number, t: any) => sum + (Number(t.actual_cost) || Number(t.estimated_cost) || 0), 0)
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>

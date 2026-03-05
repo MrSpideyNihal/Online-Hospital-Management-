@@ -37,7 +37,7 @@ import {
     Phone, Mail, MapPin, Download, ChevronLeft, ChevronRight, Loader2, QrCode,
 } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
-import { formatDate } from '@/lib/utils'
+import { escapeCsvCell, formatDate } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { usePatients, useCreatePatient, useUpdatePatient, useDeletePatient } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
@@ -166,7 +166,7 @@ export default function PatientsPage() {
             p.patient_id_number, p.full_name, p.email || '', p.phone || '',
             p.gender || '', p.date_of_birth || '', p.blood_group || '', p.city || '',
         ])
-        const csv = [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+        const csv = [headers, ...rows].map(r => r.map((c) => escapeCsvCell(c)).join(',')).join('\n')
         const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a'); a.href = url; a.download = 'patients.csv'; a.click()
