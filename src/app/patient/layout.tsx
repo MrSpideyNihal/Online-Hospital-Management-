@@ -23,10 +23,13 @@ const NAV_ITEMS = [
 export default function PatientLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname()
     const router = useRouter()
+    const [mounted, setMounted] = useState(false)
     const { theme, setTheme } = useTheme()
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const { user, profile, isLoading, signOut } = useAuth()
+
+    useEffect(() => { setMounted(true) }, [])
 
     useEffect(() => {
         if (!isLoading && !user) {
@@ -82,8 +85,8 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
             <div className="p-3 border-t space-y-2">
                 <Button variant="ghost" size="sm" className="w-full justify-start"
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                    {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                    {!sidebarCollapsed && (theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
+                    {mounted && theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                    {!sidebarCollapsed && (mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start text-destructive" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />

@@ -114,29 +114,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [user, fetchProfile, fetchHospital])
 
     useEffect(() => {
-        const initAuth = async () => {
-            try {
-                const { data: { user: currentUser } } = await supabase.auth.getUser()
-                setUser(currentUser)
-                if (currentUser) {
-                    const p = await fetchProfile(currentUser.id, currentUser.email || '', currentUser.user_metadata)
-                    setProfile(p)
-                    if (p?.hospital_id) {
-                        const h = await fetchHospital(p.hospital_id)
-                        setHospital(h)
-                    }
-                }
-            } catch (error) {
-                console.error('Auth init error:', error)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-
-        initAuth()
-
+        // Use onAuthStateChange exclusively — it fires INITIAL_SESSION on mount
+        // This avoids the double-init race that causes Supabase lock errors
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, session) => {
+            async (_event: string, session: { user: User | null } | null) => {
                 try {
                     const currentUser = session?.user ?? null
                     setUser(currentUser)
@@ -160,7 +141,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         )
 
         return () => subscription.unsubscribe()
-    }, [supabase, fetchProfile, fetchHospital])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     const signOut = async () => {
         try {

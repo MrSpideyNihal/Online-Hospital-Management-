@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Search, MapPin, Star, ArrowRight, Sparkles, Shield, Clock, Users, Phone, Stethoscope, ChevronRight, Sun, Moon } from 'lucide-react'
 import { useTheme } from 'next-themes'
@@ -29,7 +29,10 @@ const STATS = [
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCity, setSelectedCity] = useState('')
+  const [mounted, setMounted] = useState(false)
   const { theme, setTheme } = useTheme()
+
+  useEffect(() => { setMounted(true) }, [])
 
   // Fetch live approved hospitals based on search; default shows all approved when query=""
   const { data: hospitals = [], isError } = useSearchHospitals(searchQuery || ' ', selectedCity || undefined)
@@ -53,7 +56,7 @@ export default function HomePage() {
             </Link>
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                {mounted ? (theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />) : <Moon className="w-4 h-4" />}
               </Button>
               <Link href="/login">
                 <Button variant="ghost" size="sm">Sign In</Button>

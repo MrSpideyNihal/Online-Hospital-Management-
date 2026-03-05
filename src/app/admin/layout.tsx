@@ -26,8 +26,11 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const router = useRouter()
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
+    const [mounted, setMounted] = useState(false)
     const { user, profile, isLoading, isSuperAdmin, signOut } = useAuth()
     const { theme, setTheme } = useTheme()
+
+    useEffect(() => { setMounted(true) }, [])
 
     // Auth guard — only super admin can access
     // Wait for profile to load before checking isSuperAdmin (avoids false redirect)
@@ -83,8 +86,8 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
             <div className="p-3 border-t space-y-1">
                 <Link href="/dashboard"><Button variant="ghost" size="sm" className="w-full justify-start"><Building2 className="w-4 h-4 mr-2" />{!sidebarCollapsed && 'Hospital Dashboard'}</Button></Link>
                 <Button variant="ghost" size="sm" className="w-full justify-start" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-                    {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                    {!sidebarCollapsed && (theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
+                    {mounted && theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                    {!sidebarCollapsed && (mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
                 </Button>
                 <Button variant="ghost" size="sm" className="w-full justify-start text-destructive" onClick={handleLogout}>
                     <LogOut className="w-4 h-4 mr-2" />{!sidebarCollapsed && 'Sign Out'}

@@ -58,10 +58,13 @@ export default function DashboardLayout({
 }) {
     const pathname = usePathname()
     const router = useRouter()
+    const [mounted, setMounted] = useState(false)
     const { theme, setTheme } = useTheme()
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
     const [mobileOpen, setMobileOpen] = useState(false)
     const { user, profile, hospital, isLoading, signOut } = useAuth()
+
+    useEffect(() => { setMounted(true) }, [])
 
     // Auth guard — redirect to login if not authenticated
     useEffect(() => {
@@ -134,8 +137,8 @@ export default function DashboardLayout({
                     className="w-full justify-start"
                     onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
                 >
-                    {theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                    {!sidebarCollapsed && (theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
+                    {mounted && theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                    {!sidebarCollapsed && (mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
                 </Button>
                 <Button
                     variant="ghost"

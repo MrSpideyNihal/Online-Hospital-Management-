@@ -31,7 +31,7 @@ export default function PatientAppointmentsPage() {
                 .select('id')
                 .eq('user_id', user.id)
             if (!patients?.length) return []
-            const patientIds = patients.map(p => p.id)
+            const patientIds = patients.map((p: { id: string }) => p.id)
             const { data } = await supabase
                 .from('appointments')
                 .select('*, doctors:doctor_id(full_name), hospitals:hospital_id(name)')

@@ -34,7 +34,7 @@ export default function PatientDashboard() {
                     .select('id')
                     .eq('user_id', user.id)
                 if (!patients?.length) return []
-                const patientIds = patients.map(p => p.id)
+                const patientIds = patients.map((p: { id: string }) => p.id)
                 const { data: appts } = await supabase
                     .from('appointments')
                     .select('*, patients:patient_id(full_name), doctors:doctor_id(full_name)')
@@ -57,7 +57,7 @@ export default function PatientDashboard() {
                 .select('id')
                 .eq('user_id', user.id)
             if (!patients?.length) return []
-            const patientIds = patients.map(p => p.id)
+            const patientIds = patients.map((p: { id: string }) => p.id)
             const { data } = await supabase
                 .from('visits')
                 .select('*, doctors:doctor_id(full_name)')
