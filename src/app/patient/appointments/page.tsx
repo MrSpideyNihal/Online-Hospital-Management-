@@ -225,6 +225,11 @@ export default function PatientAppointmentsPage() {
                                         <option key={hospital.id} value={hospital.id}>{hospital.name}</option>
                                     ))}
                                 </select>
+                                {hospitals.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        No approved hospitals are available for online booking right now.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="space-y-1.5">
@@ -248,6 +253,11 @@ export default function PatientAppointmentsPage() {
                                         </option>
                                     ))}
                                 </select>
+                                {fHospital && !loadingDoctors && doctors.length === 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                        No active doctors are listed for this hospital yet. Try another hospital or contact reception.
+                                    </p>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
@@ -296,7 +306,7 @@ export default function PatientAppointmentsPage() {
                             <Button
                                 className="bg-teal-600 hover:bg-teal-700 text-white"
                                 onClick={handleBookAppointment}
-                                disabled={isSubmitting}
+                                disabled={isSubmitting || doctors.length === 0 || hospitals.length === 0}
                             >
                                 {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Booking...</> : 'Confirm Booking'}
                             </Button>

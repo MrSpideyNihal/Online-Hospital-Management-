@@ -2,7 +2,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -36,12 +37,17 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
 }
 
 export default function AppointmentsPage() {
-    const { hospitalId } = useAuth()
+    const router = useRouter()
+    const { hospitalId, profile, hospital } = useAuth()
     const { data: appointments = [], isLoading, isError } = useAppointments(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createAppointment = useCreateAppointment()
     const updateAppointment = useUpdateAppointment()
+    const isServiceLocked = !!hospital && (hospital.status !== 'approved' || hospital.is_frozen)
+    const activeDoctors = doctors.filter(d => d.is_active)
+    const hasPatients = patients.length > 0
+    const hasDoctors = activeDoctors.length > 0
 
     const [filter, setFilter] = useState('all')
     const [search, setSearch] = useState('')
@@ -52,10 +58,24 @@ export default function AppointmentsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const searchParams = useSearchParams()
 
+    useEffect(() => {
+        if (profile?.role === 'patient') {
+            router.replace('/patient/appointments')
+        }
+    }, [profile, router])
+
     // Auto-open book dialog from quick action link
     useEffect(() => {
-        if (searchParams.get('action') === 'new') setIsAddOpen(true)
-    }, [searchParams])
+        if (searchParams.get('action') !== 'new') return
+
+        if (isServiceLocked) {
+            toast.error('Appointments unlock after your hospital is approved.')
+            setIsAddOpen(false)
+            return
+        }
+
+        setIsAddOpen(true)
+    }, [searchParams, isServiceLocked])
 
     // Form state
     const [fPatient, setFPatient] = useState('')
@@ -70,6 +90,18 @@ export default function AppointmentsPage() {
     const [isCreating, setIsCreating] = useState(false)
 
     const handleCreate = async () => {
+        if (isServiceLocked) {
+            toast.error('Appointments are locked until hospital approval.')
+            return
+        }
+        if (!hasPatients) {
+            toast.error('Add at least one patient first.')
+            return
+        }
+        if (!hasDoctors) {
+            toast.error('Add at least one active doctor first.')
+            return
+        }
         if (!hospitalId || !fPatient || !fDoctor || !fDate || !fTime) {
             toast.error('Please fill all required fields'); return
         }
@@ -157,15 +189,23 @@ export default function AppointmentsPage() {
                 </div>
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
-                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                        <Button size="sm" className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={isServiceLocked}>
                             <CalendarPlus className="w-4 h-4 mr-1.5" /> Book Appointment
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-lg">
                         <DialogHeader>
                             <DialogTitle>Book New Appointment</DialogTitle>
-                            <DialogDescription>Schedule a new appointment for a patient.</DialogDescription>
+                            <DialogDescription>
+                                Staff scheduler: choose an existing patient and doctor for this hospital.
+                                Patients book their own appointments from the patient portal.
+                            </DialogDescription>
                         </DialogHeader>
+                        {isServiceLocked && (
+                            <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 px-3 py-2 text-sm">
+                                Appointment booking is disabled while the hospital is pending approval or frozen.
+                            </div>
+                        )}
                         <div className="grid gap-4 py-4">
                             <div className="space-y-1.5">
                                 <Label>Patient *</Label>
@@ -173,13 +213,23 @@ export default function AppointmentsPage() {
                                     <option value="">Select patient</option>
                                     {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
                                 </select>
+                                {!hasPatients && (
+                                    <p className="text-xs text-muted-foreground">
+                                        No patients found. <Link href="/dashboard/patients?action=new" className="text-primary underline">Add a patient first</Link>.
+                                    </p>
+                                )}
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Doctor *</Label>
                                 <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fDoctor} onChange={e => setFDoctor(e.target.value)}>
                                     <option value="">Select doctor</option>
-                                    {doctors.filter(d => d.is_active).map(d => <option key={d.id} value={d.id}>{d.full_name} — {d.specialization || 'General'}</option>)}
+                                    {activeDoctors.map(d => <option key={d.id} value={d.id}>{d.full_name} — {d.specialization || 'General'}</option>)}
                                 </select>
+                                {!hasDoctors && (
+                                    <p className="text-xs text-muted-foreground">
+                                        No active doctors found. <Link href="/dashboard/doctors" className="text-primary underline">Add a doctor first</Link>.
+                                    </p>
+                                )}
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5"><Label>Date *</Label><Input type="date" min={new Date().toISOString().split('T')[0]} value={fDate} onChange={e => setFDate(e.target.value)} /></div>
@@ -198,7 +248,7 @@ export default function AppointmentsPage() {
                         </div>
                         <DialogFooter>
                             <DialogClose asChild><Button variant="outline">Cancel</Button></DialogClose>
-                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreate} disabled={isCreating || createAppointment.isPending}>
+                            <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" onClick={handleCreate} disabled={isServiceLocked || isCreating || createAppointment.isPending}>
                                 {(isCreating || createAppointment.isPending) ? <><Loader2 className="w-4 h-4 mr-1.5 animate-spin" />Booking...</> : 'Book Appointment'}
                             </Button>
                         </DialogFooter>
