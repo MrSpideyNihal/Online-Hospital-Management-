@@ -55,7 +55,7 @@ export default function PricingPage() {
               <Zap className="w-8 h-8 text-amber-600" />
               <div>
                 <h3 className="text-lg font-bold">One-Time Registration Fee</h3>
-                <p className="text-sm text-muted-foreground">A one-time setup fee to activate your clinic on DentalHub. Pay once, then choose a subscription plan below.</p>
+                <p className="text-sm text-muted-foreground">A one-time setup fee to get your clinic on DentalHub. After paying this, your first-year subscription starts at just <span className="font-semibold text-emerald-600">₹400/month</span>. From year 2 onwards, the standard rate of <span className="font-semibold">₹1,200/month</span> applies.</p>
               </div>
             </div>
             <div className="flex items-baseline gap-1 shrink-0">
@@ -64,6 +64,22 @@ export default function PricingPage() {
             </div>
           </div>
         </Card>
+
+        {/* How It Works */}
+        <div className="grid grid-cols-3 gap-4 mb-10 text-center">
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="text-2xl font-bold text-amber-600 mb-1">Step 1</div>
+            <p className="text-xs text-muted-foreground">Pay ₹8,999 registration fee</p>
+          </div>
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="text-2xl font-bold text-emerald-600 mb-1">Step 2</div>
+            <p className="text-xs text-muted-foreground">Enjoy ₹400/mo for the first year</p>
+          </div>
+          <div className="rounded-xl border bg-muted/30 p-4">
+            <div className="text-2xl font-bold text-blue-600 mb-1">Step 3</div>
+            <p className="text-xs text-muted-foreground">Continue at ₹1,200/mo or ₹16,000/yr</p>
+          </div>
+        </div>
 
         {/* Subscription Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
@@ -77,7 +93,7 @@ export default function PricingPage() {
                 <Sparkles className="w-5 h-5 text-emerald-600" />
                 <CardTitle className="text-lg">First Year Offer</CardTitle>
               </div>
-              <p className="text-sm text-muted-foreground">Introductory pricing for new clinics</p>
+              <p className="text-sm text-muted-foreground">Automatically applied for your first year</p>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -99,7 +115,7 @@ export default function PricingPage() {
           <Card className="border-border/60">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Monthly</CardTitle>
-              <p className="text-sm text-muted-foreground">Pay as you go, cancel anytime</p>
+              <p className="text-sm text-muted-foreground">Standard rate from year 2 onwards</p>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -166,9 +182,9 @@ export default function PricingPage() {
 
         {/* FAQ / Note */}
         <div className="rounded-xl border p-6 bg-muted/30 text-center">
-          <p className="font-semibold mb-1">How does the introductory offer work?</p>
+          <p className="font-semibold mb-1">How does the pricing work?</p>
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            New clinics pay just ₹400/month for the entire first year. After year one, your plan continues at the standard monthly rate of ₹1,200/month — or switch to the annual plan at ₹16,000/year for additional savings. You can cancel anytime.
+            First, pay a one-time registration fee of <span className="font-semibold">₹8,999</span> to set up your clinic on DentalHub. After that, you get your entire first year at just <span className="font-semibold text-emerald-600">₹400/month</span> (₹4,800 total). From your second year, the plan moves to the standard rate of <span className="font-semibold">₹1,200/month</span> — or save by switching to the annual plan at <span className="font-semibold">₹16,000/year</span>. You can cancel anytime.
           </p>
         </div>
 
