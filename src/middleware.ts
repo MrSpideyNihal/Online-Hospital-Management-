@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 // Stamped at build time by next.config.ts → process.env.NEXT_PUBLIC_BUILD_ID
 const BUILD_ID = process.env.NEXT_PUBLIC_BUILD_ID ?? 'dev'
 
-const STRIP_QUERY_KEYS = new Set(['redirect', 'code', '__chunkfix', '__chunkts', '_rsc'])
+const STRIP_QUERY_KEYS = new Set(['redirect', 'code', 'type', '__chunkfix', '__chunkts', '_rsc'])
 
 function getSafeReturnPath(request: NextRequest): string {
     const url = request.nextUrl.clone()
@@ -34,6 +34,18 @@ function applyNoStoreHeaders(response: NextResponse) {
 
 export async function middleware(request: NextRequest) {
     const { pathname, searchParams } = request.nextUrl
+
+    // `type=hospital` is only meaningful on /login and /auth/callback.
+    // If it leaks into app routes (e.g. /dashboard), strip it to avoid
+    // sticky/infinite refresh URLs during chunk recovery flows.
+    if (pathname !== '/login' && pathname !== '/auth/callback' && searchParams.has('type')) {
+        const cleanUrl = request.nextUrl.clone()
+        cleanUrl.searchParams.delete('type')
+        cleanUrl.searchParams.delete('__chunkfix')
+        cleanUrl.searchParams.delete('__chunkts')
+        cleanUrl.searchParams.delete('_rsc')
+        return applyNoStoreHeaders(NextResponse.redirect(cleanUrl))
+    }
 
     // Normalize stale nested redirect query params from older flows.
     // Example bad URL: /dashboard?redirect=%2Fpatient

@@ -64,8 +64,11 @@ export default function RootLayout({
                 function cleanParams(){
                   try{
                     var u=new URL(location.href);
-                    var had=u.searchParams.has('__chunkfix')||u.searchParams.has('__chunkts')||u.searchParams.has('_rsc');
+                    var isAuthRoute=u.pathname==='/login'||u.pathname==='/auth/callback';
+                    var hadType=!isAuthRoute&&u.searchParams.has('type');
+                    var had=u.searchParams.has('__chunkfix')||u.searchParams.has('__chunkts')||u.searchParams.has('_rsc')||hadType;
                     u.searchParams.delete('__chunkfix');u.searchParams.delete('__chunkts');u.searchParams.delete('_rsc');
+                    if(!isAuthRoute)u.searchParams.delete('type');
                     if(had)history.replaceState(null,'',u.pathname+u.search+u.hash);
                   }catch(_){}
                 }
@@ -81,6 +84,7 @@ export default function RootLayout({
                   s.count+=1;s.ts=now;saveState(s);
                   resetCaches();
                   var u=new URL(location.href);
+                  if(u.pathname!=='/login'&&u.pathname!=='/auth/callback')u.searchParams.delete('type');
                   u.searchParams.set('__chunkfix',String(s.count));
                   u.searchParams.set('__chunkts',now.toString(36));
                   location.replace(u.pathname+u.search+u.hash);
