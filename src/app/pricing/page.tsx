@@ -55,7 +55,7 @@ export default function PricingPage() {
               <Zap className="w-8 h-8 text-amber-600" />
               <div>
                 <h3 className="text-lg font-bold">One-Time Registration Fee</h3>
-                <p className="text-sm text-muted-foreground">A one-time setup fee to get your clinic on DentalHub. After paying this, your first-year subscription starts at just <span className="font-semibold text-emerald-600">₹400/month</span>. From year 2 onwards, the standard rate of <span className="font-semibold">₹1,200/month</span> applies.</p>
+                <p className="text-sm text-muted-foreground">A one-time setup fee to get your clinic on DentalHub. After paying this, your first-year subscription starts at just <span className="font-semibold text-emerald-600">₹399/month</span>. From year 2 onwards, the standard rate of <span className="font-semibold">₹1,200/month</span> or <span className="font-semibold text-blue-600">₹12,000/year</span> applies.</p>
               </div>
             </div>
             <div className="flex items-baseline gap-1 shrink-0">
@@ -73,11 +73,11 @@ export default function PricingPage() {
           </div>
           <div className="rounded-xl border bg-muted/30 p-4">
             <div className="text-2xl font-bold text-emerald-600 mb-1">Step 2</div>
-            <p className="text-xs text-muted-foreground">Enjoy ₹400/mo for the first year</p>
+            <p className="text-xs text-muted-foreground">Enjoy ₹399/mo for the first year</p>
           </div>
           <div className="rounded-xl border bg-muted/30 p-4">
             <div className="text-2xl font-bold text-blue-600 mb-1">Step 3</div>
-            <p className="text-xs text-muted-foreground">Continue at ₹1,200/mo or ₹16,000/yr</p>
+            <p className="text-xs text-muted-foreground">Continue at ₹1,200/mo or ₹12,000/yr</p>
           </div>
         </div>
 
@@ -98,10 +98,10 @@ export default function PricingPage() {
             <CardContent>
               <div className="mb-4">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-emerald-600">₹400</span>
+                  <span className="text-4xl font-extrabold text-emerald-600">₹399</span>
                   <span className="text-muted-foreground text-sm">/month</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">₹4,800 for the first year · Save ₹9,600</p>
+                <p className="text-xs text-muted-foreground mt-1">₹4,788 for the first year · Save ₹9,612 vs standard</p>
               </div>
               <Link href="/login?type=hospital">
                 <Button className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
@@ -148,10 +148,10 @@ export default function PricingPage() {
             <CardContent>
               <div className="mb-4">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-blue-600">₹16,000</span>
+                  <span className="text-4xl font-extrabold text-blue-600">₹12,000</span>
                   <span className="text-muted-foreground text-sm">/year</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">~₹1,333/month · Pay once, use all year</p>
+                <p className="text-xs text-muted-foreground mt-1">₹1,000/month · Save ₹2,400 vs monthly</p>
               </div>
               <Link href="/login?type=hospital">
                 <Button className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
@@ -184,7 +184,15 @@ export default function PricingPage() {
         <div className="rounded-xl border p-6 bg-muted/30 text-center">
           <p className="font-semibold mb-1">How does the pricing work?</p>
           <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-            First, pay a one-time registration fee of <span className="font-semibold">₹8,999</span> to set up your clinic on DentalHub. After that, you get your entire first year at just <span className="font-semibold text-emerald-600">₹400/month</span> (₹4,800 total). From your second year, the plan moves to the standard rate of <span className="font-semibold">₹1,200/month</span> — or save by switching to the annual plan at <span className="font-semibold">₹16,000/year</span>. You can cancel anytime.
+            First, pay a one-time registration fee of <span className="font-semibold">₹8,999</span> to set up your clinic on DentalHub. After that, you get your entire first year at just <span className="font-semibold text-emerald-600">₹399/month</span> (₹4,788 total — saving ₹9,612 compared to the standard rate). From your second year, the plan moves to the standard rate of <span className="font-semibold">₹1,200/month</span> — or save ₹2,400 by switching to the annual plan at <span className="font-semibold">₹12,000/year</span>. You can cancel anytime.
+          </p>
+        </div>
+
+        {/* Note */}
+        <div className="mt-6 rounded-xl border border-cyan-200 dark:border-cyan-800 bg-cyan-50/50 dark:bg-cyan-950/20 p-5 text-center">
+          <p className="text-sm font-medium text-cyan-800 dark:text-cyan-200 mb-1">A friendly note from us</p>
+          <p className="text-sm text-cyan-700 dark:text-cyan-400 max-w-2xl mx-auto">
+            Please make the most of your <span className="font-semibold">14-day free trial</span> before committing. Explore every feature, set up your clinic, and see if DentalHub is right for you. You can cancel your subscription or stop anytime — no questions asked. Please read our <Link href="/terms" className="underline font-medium hover:text-cyan-900 dark:hover:text-cyan-200">Terms</Link> &amp; <Link href="/privacy" className="underline font-medium hover:text-cyan-900 dark:hover:text-cyan-200">Privacy Policy</Link> before subscribing.
           </p>
         </div>
 
