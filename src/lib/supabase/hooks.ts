@@ -542,7 +542,7 @@ export function useInvoices(hospitalId: string | null) {
             if (!hospitalId) return []
             const { data, error } = await supabase
                 .from('invoices')
-                .select('*, patients(full_name)')
+                .select('*, patients(full_name, phone, email, patient_id_number)')
                 .eq('hospital_id', hospitalId)
                 .order('created_at', { ascending: false })
             if (error) throw error
