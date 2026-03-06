@@ -5,6 +5,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -12,10 +14,16 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
-    Search, MoreHorizontal, CheckCircle, XCircle, Snowflake, Eye, MapPin, Loader2,
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from '@/components/ui/dialog'
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select'
+import {
+    Search, MoreHorizontal, CheckCircle, XCircle, Snowflake, Eye, MapPin, Loader2, Bell, CreditCard,
 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { useAllHospitals, useApproveHospital, useRejectHospital, useFreezeHospital } from '@/lib/supabase/hooks'
+import { useAllHospitals, useApproveHospital, useRejectHospital, useFreezeHospital, useSendAdminNotification } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -37,10 +45,63 @@ export default function AdminHospitalsPage() {
     const [search, setSearch] = useState('')
     const [filterStatus, setFilterStatus] = useState('all')
 
+    // Notification dialog state
+    const [notifyOpen, setNotifyOpen] = useState(false)
+    const [notifyHospital, setNotifyHospital] = useState<{ id: string; name: string } | null>(null)
+    const [notifyTitle, setNotifyTitle] = useState('')
+    const [notifyMessage, setNotifyMessage] = useState('')
+    const [notifyType, setNotifyType] = useState('info')
+
+    // Payment request dialog state
+    const [payOpen, setPayOpen] = useState(false)
+    const [payHospital, setPayHospital] = useState<{ id: string; name: string } | null>(null)
+    const [payAmount, setPayAmount] = useState('')
+    const [payUpi, setPayUpi] = useState('')
+    const [payNote, setPayNote] = useState('')
+
     const { data: hospitals, isLoading, isError } = useAllHospitals()
     const approve = useApproveHospital()
     const rejectMut = useRejectHospital()
     const freeze = useFreezeHospital()
+    const sendNotification = useSendAdminNotification()
+
+    const openNotifyDialog = (h: { id: string; name: string }) => {
+        setNotifyHospital(h)
+        setNotifyTitle('')
+        setNotifyMessage('')
+        setNotifyType('info')
+        setNotifyOpen(true)
+    }
+
+    const openPayDialog = (h: { id: string; name: string }) => {
+        setPayHospital(h)
+        setPayAmount('')
+        setPayNote('')
+        setPayOpen(true)
+    }
+
+    const handleSendNotification = () => {
+        if (!notifyHospital || !notifyTitle.trim() || !notifyMessage.trim()) return
+        sendNotification.mutate(
+            { hospitalId: notifyHospital.id, title: notifyTitle.trim(), message: notifyMessage.trim(), type: notifyType },
+            {
+                onSuccess: () => { toast.success(`Notification sent to ${notifyHospital.name}`); setNotifyOpen(false) },
+                onError: (e) => toast.error(e.message),
+            },
+        )
+    }
+
+    const handleSendPaymentRequest = () => {
+        if (!payHospital || !payAmount.trim()) return
+        const message = `Payment of ₹${payAmount} is due.${payUpi.trim() ? `\n\nPay via UPI: ${payUpi.trim()}` : ''}${payNote.trim() ? `\n\nNote: ${payNote.trim()}` : ''}`
+        sendNotification.mutate(
+            { hospitalId: payHospital.id, title: 'Payment Request', message, type: 'payment' },
+            {
+                onSuccess: () => { toast.success(`Payment request sent to ${payHospital.name}`); setPayOpen(false) },
+                onError: (e) => toast.error(e.message),
+            },
+        )
+    }
 
     const all = hospitals || []
     const displayStatus = (h: typeof all[0]) => h.is_frozen ? 'frozen' : h.status
@@ -183,6 +244,12 @@ export default function AdminHospitalsPage() {
                                                             onError: (e) => toast.error(e.message),
                                                         })}><CheckCircle className="w-4 h-4 mr-2" /> Unfreeze</DropdownMenuItem>
                                                     )}
+                                                    <DropdownMenuItem onClick={() => openNotifyDialog(h)}>
+                                                        <Bell className="w-4 h-4 mr-2" /> Send Notification
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onClick={() => openPayDialog(h)}>
+                                                        <CreditCard className="w-4 h-4 mr-2" /> Request Payment
+                                                    </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -194,6 +261,75 @@ export default function AdminHospitalsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* Send Notification Dialog */}
+            <Dialog open={notifyOpen} onOpenChange={setNotifyOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Send Notification to {notifyHospital?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Type</Label>
+                            <Select value={notifyType} onValueChange={setNotifyType}>
+                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="info">Info</SelectItem>
+                                    <SelectItem value="warning">Warning</SelectItem>
+                                    <SelectItem value="error">Urgent</SelectItem>
+                                    <SelectItem value="success">Success</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Title</Label>
+                            <Input value={notifyTitle} onChange={e => setNotifyTitle(e.target.value)} placeholder="Notification title" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Message</Label>
+                            <Textarea value={notifyMessage} onChange={e => setNotifyMessage(e.target.value)} placeholder="Enter your message..." rows={4} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setNotifyOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSendNotification} disabled={!notifyTitle.trim() || !notifyMessage.trim() || sendNotification.isPending}>
+                            {sendNotification.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Bell className="w-4 h-4 mr-2" />}
+                            Send
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Payment Request Dialog */}
+            <Dialog open={payOpen} onOpenChange={setPayOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Request Payment from {payHospital?.name}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <Label>Amount (₹)</Label>
+                            <Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="e.g. 16000" />
+                        </div>
+                        <div className="space-y-2">
+                            <Label>UPI ID</Label>
+                            <Input value={payUpi} onChange={e => setPayUpi(e.target.value)} placeholder="e.g. yourname@upi" />
+                            <p className="text-xs text-muted-foreground">Hospital will see this UPI ID for payment</p>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Note (optional)</Label>
+                            <Textarea value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="Additional details..." rows={3} />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setPayOpen(false)}>Cancel</Button>
+                        <Button onClick={handleSendPaymentRequest} disabled={!payAmount.trim() || sendNotification.isPending}>
+                            {sendNotification.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+                            Send Request
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

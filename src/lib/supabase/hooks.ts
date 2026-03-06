@@ -773,6 +773,19 @@ export function useFreezeHospital() {
     })
 }
 
+export function useSendAdminNotification() {
+    return useMutation({
+        mutationFn: async (data: { hospitalId: string; title: string; message: string; type?: string }) => {
+            const res = await fetch('/api/admin/hospitals', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ...data, action: 'notify' }),
+            })
+            return parseApiJson<{ success: boolean }>(res)
+        },
+    })
+}
+
 // ============================================================
 // NOTIFICATIONS
 // ============================================================

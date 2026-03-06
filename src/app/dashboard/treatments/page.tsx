@@ -15,7 +15,7 @@ import {
 import { Plus, Loader2, CheckCircle, Clock, XCircle, AlertCircle, IndianRupee } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { useTreatments, useCreateTreatment, useUpdateTreatment, usePatients } from '@/lib/supabase/hooks'
+import { useTreatments, useCreateTreatment, useUpdateTreatment, usePatients, useDoctors } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 import type { TreatmentStatus } from '@/types/database'
 
@@ -34,9 +34,10 @@ const TREATMENT_TYPES = [
 ]
 
 export default function TreatmentsPage() {
-    const { hospitalId, user } = useAuth()
+    const { hospitalId } = useAuth()
     const { data: treatments = [], isLoading, isError } = useTreatments(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
+    const { data: doctors = [] } = useDoctors(hospitalId)
     const createTreatment = useCreateTreatment()
     const updateTreatment = useUpdateTreatment()
 
@@ -52,10 +53,11 @@ export default function TreatmentsPage() {
     const [fEstCost, setFEstCost] = useState('')
     const [fPlannedDate, setFPlannedDate] = useState('')
     const [fNotes, setFNotes] = useState('')
+    const [fDoctor, setFDoctor] = useState('')
 
     const resetForm = () => {
         setFPatient(''); setFType(''); setFDesc(''); setFTooth('');
-        setFEstCost(''); setFPlannedDate(''); setFNotes('')
+        setFEstCost(''); setFPlannedDate(''); setFNotes(''); setFDoctor('')
     }
 
     const handleCreate = () => {
@@ -80,7 +82,7 @@ export default function TreatmentsPage() {
             estimated_cost: fEstCost ? parseFloat(fEstCost) : null,
             planned_date: fPlannedDate || null,
             status: 'planned',
-            performed_by: user?.id ?? null,
+            performed_by: fDoctor || null,
             notes: fNotes || null,
         }, {
             onSuccess: () => { toast.success('Treatment plan created'); setIsAddOpen(false); resetForm() },
@@ -167,6 +169,13 @@ export default function TreatmentsPage() {
                             <div className="space-y-1.5">
                                 <Label>Description</Label>
                                 <Textarea placeholder="Treatment details..." rows={2} value={fDesc} onChange={e => setFDesc(e.target.value)} />
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label>Performed By (Doctor)</Label>
+                                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fDoctor} onChange={e => setFDoctor(e.target.value)}>
+                                    <option value="">Select doctor (optional)</option>
+                                    {doctors.filter(d => d.is_active).map(d => <option key={d.id} value={d.id}>{d.full_name}{d.specialization ? ` — ${d.specialization}` : ''}</option>)}
+                                </select>
                             </div>
                             <div className="space-y-1.5">
                                 <Label>Notes</Label>

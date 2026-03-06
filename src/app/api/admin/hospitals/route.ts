@@ -108,6 +108,47 @@ export async function PATCH(request: NextRequest) {
             })
         }
 
+        if (action === 'notify') {
+            const title = typeof body.title === 'string' ? body.title.trim() : ''
+            const message = typeof body.message === 'string' ? body.message.trim() : ''
+            const type = typeof body.type === 'string' && ['info', 'success', 'warning', 'error', 'payment'].includes(body.type) ? body.type : 'info'
+
+            if (!title || !message) {
+                return NextResponse.json({ error: 'Notification title and message are required.' }, { status: 400 })
+            }
+
+            // Resolve the hospital owner
+            const { data: hospital, error: hospErr } = await admin
+                .from('hospitals')
+                .select('id, name, owner_id')
+                .eq('id', hospitalId)
+                .single()
+
+            if (hospErr || !hospital) {
+                return NextResponse.json({ error: 'Hospital not found.' }, { status: 404 })
+            }
+
+            if (!hospital.owner_id) {
+                return NextResponse.json({ error: 'Hospital has no linked owner account.' }, { status: 400 })
+            }
+
+            const { error: notifErr } = await admin.from('notifications').insert({
+                hospital_id: hospital.id,
+                user_id: hospital.owner_id,
+                title,
+                message,
+                type,
+                link: '/dashboard',
+                is_read: false,
+            })
+
+            if (notifErr) {
+                return NextResponse.json({ error: notifErr.message }, { status: 500 })
+            }
+
+            return NextResponse.json({ success: true })
+        }
+
         if (action === 'freeze' || action === 'unfreeze') {
             const { data, error } = await admin
                 .from('hospitals')
