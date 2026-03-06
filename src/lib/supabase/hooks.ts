@@ -657,17 +657,21 @@ export function useUpdateHospital() {
     const queryClient = useQueryClient()
     return useMutation({
         mutationFn: async ({ id, ...updates }: Partial<Hospital> & { id: string }) => {
-            const { data, error } = await supabase
-                .from('hospitals')
-                .update(updates)
-                .eq('id', id)
-                .select()
-                .single()
-            if (error) throw error
-            return data as Hospital
+            const res = await fetch('/api/me/hospital', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, ...updates }),
+            })
+
+            return parseApiJson<Hospital>(res)
         },
         onSuccess: (data) => {
-            queryClient.invalidateQueries({ queryKey: ['hospital', data.slug] })
+            queryClient.invalidateQueries({ queryKey: ['hospital'] })
+            if (data?.slug) {
+                queryClient.invalidateQueries({ queryKey: ['hospital', data.slug] })
+            }
+            queryClient.invalidateQueries({ queryKey: ['all-hospitals'] })
+            hospitalWriteGuardCache = null
         },
     })
 }
