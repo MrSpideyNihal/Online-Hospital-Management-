@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { CheckCircle2, ArrowRight, Sparkles, Clock, Star } from 'lucide-react'
+import { CheckCircle2, ArrowRight, Sparkles, Clock, Star, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -45,7 +45,32 @@ export default function PricingPage() {
           </p>
         </div>
 
-        {/* Pricing Cards */}
+        {/* One-Time Purchase */}
+        <Card className="border-2 border-amber-300 dark:border-amber-700 relative overflow-hidden mb-10">
+          <div className="absolute top-0 right-0 bg-amber-600 text-white text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wider">
+            One-Time Payment
+          </div>
+          <div className="flex flex-col md:flex-row items-center gap-6 p-6">
+            <div className="flex items-center gap-3">
+              <Zap className="w-8 h-8 text-amber-600" />
+              <div>
+                <h3 className="text-lg font-bold">Lifetime Access</h3>
+                <p className="text-sm text-muted-foreground">Pay once, use forever. No recurring fees.</p>
+              </div>
+            </div>
+            <div className="flex items-baseline gap-1">
+              <span className="text-4xl font-extrabold text-amber-600">₹14,999</span>
+              <span className="text-muted-foreground text-sm">one-time</span>
+            </div>
+            <Link href="/login?type=hospital" className="md:ml-auto">
+              <Button className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
+                Get Lifetime Access <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </Card>
+
+        {/* Subscription Cards */}
         <div className="grid md:grid-cols-3 gap-6 mb-10">
           {/* Introductory Offer */}
           <Card className="border-2 border-emerald-300 dark:border-emerald-700 relative overflow-hidden">

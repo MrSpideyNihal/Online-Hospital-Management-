@@ -352,8 +352,16 @@ export default function HomePage() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t text-center text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} DentalHub. All rights reserved.
+          {/* Credits */}
+          <div className="mt-8 pt-6 border-t flex flex-wrap justify-center gap-x-6 gap-y-1 text-[11px] text-muted-foreground/70">
+            <span>Concept by <span className="font-medium text-foreground/60">Nihal Rodge</span></span>
+            <span>UI Design by <span className="font-medium text-foreground/60">Kshitija Lanjewar</span></span>
+            <span>Tested by <span className="font-medium text-foreground/60">Rohit Bhise</span></span>
+          </div>
+
+          <div className="mt-4 pt-4 border-t text-center text-sm text-muted-foreground">
+            <p>&copy; {new Date().getFullYear()} DentalHub. All rights reserved.</p>
+            <p className="mt-1 text-xs">Made by <span className="font-semibold">Nihal Rodge</span> · Contact for business: <a href="mailto:oneforall0311@gmail.com" className="text-primary hover:underline">oneforall0311@gmail.com</a></p>
           </div>
         </div>
       </footer>
