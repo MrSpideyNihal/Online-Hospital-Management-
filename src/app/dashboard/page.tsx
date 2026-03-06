@@ -40,7 +40,7 @@ export default function DashboardPage() {
     const { data: visits, isLoading: visitsLoading } = useVisits(hospitalId, today, 10)
 
     const statCards = [
-        { title: "Today's Patients", value: stats?.todayVisits ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+        { title: 'Total Patients', value: stats?.totalPatients ?? 0, icon: Users, color: 'text-blue-600', bg: 'bg-blue-100 dark:bg-blue-900/30' },
         { title: 'Appointments', value: stats?.todayAppointments ?? 0, icon: Calendar, color: 'text-purple-600', bg: 'bg-purple-100 dark:bg-purple-900/30' },
         { title: 'OPD Visits', value: stats?.todayVisits ?? 0, icon: ClipboardList, color: 'text-green-600', bg: 'bg-green-100 dark:bg-green-900/30' },
         { title: 'Total Doctors', value: stats?.totalDoctors ?? 0, icon: Stethoscope, color: 'text-amber-600', bg: 'bg-amber-100 dark:bg-amber-900/30' },

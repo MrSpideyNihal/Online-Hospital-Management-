@@ -1,7 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { User, AlertTriangle, Phone, Mail, Droplets, Calendar, Clock } from 'lucide-react'
+import { User, AlertTriangle, Droplets, Calendar, Clock } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
@@ -14,12 +14,9 @@ type PatientCard = {
     gender: string | null
     date_of_birth: string | null
     blood_group: string | null
-    phone: string | null
-    email: string | null
     allergies: string[] | null
     emergency_contact_name: string | null
     emergency_contact_phone: string | null
-    last_visit: string | null
 }
 
 type UpcomingAppointment = {
@@ -39,7 +36,7 @@ async function getPatientCard(patientId: string): Promise<{ patient: PatientCard
     const admin = createAdminClient()
     const { data: patientData, error: patientError } = await admin
         .from('patients')
-        .select('id, full_name, patient_id_number, gender, date_of_birth, blood_group, phone, email, allergies, emergency_contact_name, emergency_contact_phone, last_visit')
+        .select('id, full_name, patient_id_number, gender, date_of_birth, blood_group, allergies, emergency_contact_name, emergency_contact_phone')
         .eq('id', patientId)
         .maybeSingle()
 
@@ -131,19 +128,6 @@ export default async function PatientQRPage({ params }: { params: Promise<{ pati
                         )}
                     </div>
 
-                    {patient.phone && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <Phone className="w-4 h-4 text-muted-foreground" />
-                            <span>{patient.phone}</span>
-                        </div>
-                    )}
-                    {patient.email && (
-                        <div className="flex items-center gap-2 text-sm">
-                            <Mail className="w-4 h-4 text-muted-foreground" />
-                            <span>{patient.email}</span>
-                        </div>
-                    )}
-
                     {patient.allergies && patient.allergies.length > 0 && (
                         <div>
                             <p className="text-xs text-muted-foreground mb-1.5 font-medium">Allergies</p>
@@ -174,12 +158,6 @@ export default async function PatientQRPage({ params }: { params: Promise<{ pati
                             <p className="text-xs text-muted-foreground mt-0.5">{nextAppointment.reason || 'Dental Appointment'}{nextAppointment.doctors?.full_name ? ` • Dr. ${nextAppointment.doctors.full_name}` : ''}</p>
                         </div>
                     )}
-
-                    <div className="text-center pt-2 border-t">
-                        <p className="text-xs text-muted-foreground">
-                            Last visit: {patient.last_visit ? formatDate(patient.last_visit) : 'N/A'}
-                        </p>
-                    </div>
                 </CardContent>
             </Card>
         </div>

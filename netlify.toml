@@ -49,6 +49,10 @@
     CDN-Cache-Control = "no-store"
     Netlify-CDN-Cache-Control = "no-store"
     Surrogate-Control = "no-store"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Hashed static assets — cache forever (content-addressed, safe to cache).

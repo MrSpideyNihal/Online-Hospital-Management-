@@ -29,11 +29,15 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url)
-        const status = searchParams.get('status')
+        const status = searchParams.get('status')?.toLowerCase().trim() || null
+        const VALID_STATUSES = new Set(['pending', 'approved', 'rejected'])
 
         const admin = createAdminClient()
         let query = admin.from('hospitals').select('*').order('created_at', { ascending: false })
         if (status && status !== 'all') {
+            if (!VALID_STATUSES.has(status)) {
+                return NextResponse.json({ error: 'Invalid status filter' }, { status: 400 })
+            }
             query = query.eq('status', status)
         }
 
@@ -109,8 +113,8 @@ export async function PATCH(request: NextRequest) {
         }
 
         if (action === 'notify') {
-            const title = typeof body.title === 'string' ? body.title.trim() : ''
-            const message = typeof body.message === 'string' ? body.message.trim() : ''
+            const title = typeof body.title === 'string' ? body.title.trim().slice(0, 200) : ''
+            const message = typeof body.message === 'string' ? body.message.trim().slice(0, 2000) : ''
             const type = typeof body.type === 'string' && ['info', 'success', 'warning', 'error', 'payment'].includes(body.type) ? body.type : 'info'
 
             if (!title || !message) {

@@ -91,7 +91,7 @@ export default function HospitalAboutPage() {
                                     <div className="flex items-start gap-3"><MapPin className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" /><div><p className="font-medium">Address</p><p className="text-muted-foreground">{[hospital.address, hospital.city, hospital.state, hospital.pincode].filter(Boolean).join(', ')}</p></div></div>
                                     {hospital.phone && <div className="flex items-center gap-3"><Phone className="w-5 h-5 text-primary" /><div><p className="font-medium">Phone</p><p className="text-muted-foreground">{hospital.phone}</p></div></div>}
                                     <div className="flex items-center gap-3"><Mail className="w-5 h-5 text-primary" /><div><p className="font-medium">Email</p><p className="text-muted-foreground">{hospital.email}</p></div></div>
-                                    <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-primary" /><div><p className="font-medium">Hours</p><p className="text-muted-foreground">Mon–Sat: 9:00 AM – 7:00 PM<br />Sun: Closed</p></div></div>
+                                    <div className="flex items-center gap-3"><Clock className="w-5 h-5 text-primary" /><div><p className="font-medium">Hours</p><p className="text-muted-foreground">Contact hospital for timings</p></div></div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -107,6 +107,7 @@ export default function HospitalAboutPage() {
                                     src={hospital.map_embed_url}
                                     className="w-full h-full min-h-[300px]"
                                     style={{ border: 0 }}
+                                    sandbox="allow-scripts allow-same-origin"
                                     allowFullScreen
                                     loading="lazy"
                                     referrerPolicy="no-referrer-when-downgrade"

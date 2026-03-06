@@ -93,7 +93,14 @@ export default function AdminHospitalsPage() {
 
     const handleSendPaymentRequest = () => {
         if (!payHospital || !payAmount.trim()) return
-        const message = `Payment of ₹${payAmount} is due.${payUpi.trim() ? `\n\nPay via UPI: ${payUpi.trim()}` : ''}${payNote.trim() ? `\n\nNote: ${payNote.trim()}` : ''}`
+        const amt = payAmount.trim()
+        if (!/^\d+(\.\d{1,2})?$/.test(amt) || parseFloat(amt) <= 0) {
+            toast.error('Please enter a valid amount'); return
+        }
+        if (payUpi.trim() && !/^[a-zA-Z0-9._-]+@[a-zA-Z]{2,}$/.test(payUpi.trim())) {
+            toast.error('Invalid UPI ID format (e.g. name@upi)'); return
+        }
+        const message = `Payment of \u20b9${amt} is due.${payUpi.trim() ? `\n\nPay via UPI: ${payUpi.trim()}` : ''}${payNote.trim() ? `\n\nNote: ${payNote.trim()}` : ''}`
         sendNotification.mutate(
             { hospitalId: payHospital.id, title: 'Payment Request', message, type: 'payment' },
             {
@@ -283,11 +290,11 @@ export default function AdminHospitalsPage() {
                         </div>
                         <div className="space-y-2">
                             <Label>Title</Label>
-                            <Input value={notifyTitle} onChange={e => setNotifyTitle(e.target.value)} placeholder="Notification title" />
+                            <Input value={notifyTitle} onChange={e => setNotifyTitle(e.target.value)} placeholder="Notification title" maxLength={200} disabled={sendNotification.isPending} />
                         </div>
                         <div className="space-y-2">
                             <Label>Message</Label>
-                            <Textarea value={notifyMessage} onChange={e => setNotifyMessage(e.target.value)} placeholder="Enter your message..." rows={4} />
+                            <Textarea value={notifyMessage} onChange={e => setNotifyMessage(e.target.value)} placeholder="Enter your message..." rows={4} maxLength={2000} disabled={sendNotification.isPending} />
                         </div>
                     </div>
                     <DialogFooter>
@@ -309,16 +316,16 @@ export default function AdminHospitalsPage() {
                     <div className="space-y-4 py-2">
                         <div className="space-y-2">
                             <Label>Amount (₹)</Label>
-                            <Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="e.g. 16000" />
+                            <Input type="number" value={payAmount} onChange={e => setPayAmount(e.target.value)} placeholder="e.g. 16000" min={1} disabled={sendNotification.isPending} />
                         </div>
                         <div className="space-y-2">
                             <Label>UPI ID</Label>
-                            <Input value={payUpi} onChange={e => setPayUpi(e.target.value)} placeholder="e.g. yourname@upi" />
+                            <Input value={payUpi} onChange={e => setPayUpi(e.target.value)} placeholder="e.g. yourname@upi" disabled={sendNotification.isPending} />
                             <p className="text-xs text-muted-foreground">Hospital will see this UPI ID for payment</p>
                         </div>
                         <div className="space-y-2">
                             <Label>Note (optional)</Label>
-                            <Textarea value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="Additional details..." rows={3} />
+                            <Textarea value={payNote} onChange={e => setPayNote(e.target.value)} placeholder="Additional details..." rows={3} maxLength={2000} disabled={sendNotification.isPending} />
                         </div>
                     </div>
                     <DialogFooter>

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import {
-    Star, MapPin, Phone, Calendar, Clock, Award,
+    Star, MapPin, Phone, Calendar, Award,
     ArrowRight, Loader2,
 } from 'lucide-react'
 import { useHospitalBySlug, useHospitalServices, useDoctors, useTestimonials } from '@/lib/supabase/hooks'
@@ -106,7 +106,6 @@ export default function HospitalPublicPage() {
                     <div className="flex flex-wrap justify-center gap-6 mt-10 text-sm text-muted-foreground">
                         {hospital.address && <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{hospital.address}</div>}
                         {hospital.phone && <div className="flex items-center gap-1.5"><Phone className="w-4 h-4" />{hospital.phone}</div>}
-                        <div className="flex items-center gap-1.5"><Clock className="w-4 h-4" />Mon-Sat, 9AM-7PM</div>
                     </div>
                 </div>
             </section>

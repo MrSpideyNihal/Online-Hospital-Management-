@@ -91,7 +91,8 @@ function generateClientPatientIdNumber() {
 function generateClientInvoiceNumber() {
     const now = new Date()
     const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`
-    const token = `${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${Math.floor(10 + Math.random() * 90)}`
+    const randomBytes = crypto.getRandomValues(new Uint8Array(4))
+    const token = Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase()
     return `INV-${ym}-${token}`
 }
 

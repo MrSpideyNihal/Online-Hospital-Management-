@@ -409,7 +409,7 @@ export default function SettingsPage() {
                             </div>
                             {mapEmbed && (() => { try { const u = new URL(mapEmbed); const allowed = ['www.google.com', 'maps.google.com', 'google.com', 'www.google.co.in', 'maps.googleapis.com']; return allowed.includes(u.hostname) } catch { return false } })() && (
                                 <div className="rounded-xl overflow-hidden border">
-                                    <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
+                                    <iframe src={mapEmbed} width="100%" height="300" style={{ border: 0 }} sandbox="allow-scripts allow-same-origin" allowFullScreen loading="lazy" referrerPolicy="no-referrer" />
                                 </div>
                             )}
                             <Button onClick={() => handleSave('location')} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white" disabled={updateHospital.isPending}>

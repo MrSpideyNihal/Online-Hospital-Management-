@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { CreditCard, Send, Loader2 } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
-import { useAllHospitals } from '@/lib/supabase/hooks'
+import { useAllHospitals, useSendAdminNotification } from '@/lib/supabase/hooks'
+import { toast } from 'sonner'
 
 export default function SubscriptionsPage() {
     const { data: hospitals, isLoading, isError } = useAllHospitals()
+    const sendNotification = useSendAdminNotification()
 
     const all = hospitals || []
     const now = Date.now()
@@ -27,6 +29,19 @@ export default function SubscriptionsPage() {
 
     const activeCount = subsData.filter(s => s.subStatus === 'active').length
     const pendingRenewals = subsData.filter(s => s.subStatus === 'expiring_soon' || s.subStatus === 'expired').length
+
+    const handleRemind = (hospitalId: string, hospitalName: string, subStatus: string, daysLeft: number) => {
+        const message = subStatus === 'expired'
+            ? `Your subscription for "${hospitalName}" has expired. Please renew to continue using all services.`
+            : `Your subscription for "${hospitalName}" expires in ${daysLeft} days. Please renew to avoid service interruption.`
+        sendNotification.mutate(
+            { hospitalId, title: 'Subscription Renewal Reminder', message, type: 'warning' },
+            {
+                onSuccess: () => toast.success(`Reminder sent to ${hospitalName}`),
+                onError: (e) => toast.error(e.message),
+            },
+        )
+    }
 
     if (isLoading) {
         return (
@@ -74,7 +89,12 @@ export default function SubscriptionsPage() {
                                 <Badge variant="secondary" className={`text-xs ${sub.subStatus === 'active' ? 'bg-green-100 text-green-700' : sub.subStatus === 'expiring_soon' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                                     {sub.subStatus.replace('_', ' ')}
                                 </Badge>
-                                <Button size="sm" variant="outline" className="h-7 text-xs" disabled><Send className="w-3 h-3 mr-1" />Remind (Soon)</Button>
+                                <Button size="sm" variant="outline" className="h-7 text-xs"
+                                    disabled={sendNotification.isPending}
+                                    onClick={() => handleRemind(sub.id, sub.name, sub.subStatus, sub.daysLeft)}>
+                                    {sendNotification.isPending ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Send className="w-3 h-3 mr-1" />}
+                                    Send Reminder
+                                </Button>
                             </div>
                         </div>
                     ))}

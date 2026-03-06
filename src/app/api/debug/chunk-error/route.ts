@@ -14,6 +14,10 @@ type ChunkDebugPayload = {
 
 export async function POST(request: Request) {
   try {
+    const contentLength = parseInt(request.headers.get('content-length') || '0', 10)
+    if (contentLength > 8192) {
+      return NextResponse.json({ ok: false, error: 'Payload too large' }, { status: 413 })
+    }
     const payload = (await request.json()) as ChunkDebugPayload
     const reqUrl = new URL(request.url)
     const sourceIp = request.headers.get('x-forwarded-for') || 'unknown'

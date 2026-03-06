@@ -130,7 +130,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                         <Avatar className="w-8 h-8">
                             <AvatarImage src={profile?.avatar_url || ''} />
                             <AvatarFallback className="text-xs bg-teal-600 text-white">
-                                {(profile?.full_name || user?.email || 'P').charAt(0).toUpperCase()}
+                                {(profile?.full_name?.trim() || user?.email || 'P').charAt(0).toUpperCase()}
                             </AvatarFallback>
                         </Avatar>
                         <span className="text-sm font-medium hidden sm:block">{profile?.full_name || user?.email}</span>

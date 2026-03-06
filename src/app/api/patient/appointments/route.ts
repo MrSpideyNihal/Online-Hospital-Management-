@@ -83,8 +83,8 @@ export async function POST(request: Request) {
     const appointmentDate = (body.appointmentDate || '').trim()
     const appointmentTimeRaw = (body.appointmentTime || '').trim()
     const appointmentTime = normalizeTime(appointmentTimeRaw)
-    const reason = (body.reason || '').trim() || null
-    const notes = (body.notes || '').trim() || null
+    const reason = (body.reason || '').trim().slice(0, 500) || null
+    const notes = (body.notes || '').trim().slice(0, 2000) || null
 
     if (!UUID_RE.test(hospitalId) || !UUID_RE.test(doctorId)) {
       return NextResponse.json({ error: 'Invalid hospital or doctor selected.' }, { status: 400 })
