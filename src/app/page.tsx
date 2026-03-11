@@ -355,7 +355,7 @@ export default function HomePage() {
           {/* Credits */}
           <div className="mt-8 pt-6 border-t flex flex-wrap justify-center gap-x-6 gap-y-1 text-[11px] text-muted-foreground/70">
             <span>Concept And Development by <span className="font-medium text-foreground/60">Nihal Rodge</span></span>
-            <span>UI Design by <span className="font-medium text-foreground/60">Kshitija Lanjewar</span></span>
+            <span>UI Design by <span className="font-medium text-foreground/60"></span></span>
             <span>Tested by <span className="font-medium text-foreground/60">Rohit Bhise</span></span>
           </div>
 
