@@ -13,19 +13,34 @@ import { useAuth } from '@/lib/auth-context'
 import { usePatients, useDentalChartRecords, useSaveDentalChartRecord } from '@/lib/supabase/hooks'
 import { toast } from 'sonner'
 
-// Tooth data for adult dentition (Universal Numbering System 1-32)
-const UPPER_TEETH = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
-const LOWER_TEETH = [32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17]
+// FDI World Dental Federation notation (ISO 3950)
+// Quadrant 1: Upper Right (18-11), Quadrant 2: Upper Left (21-28)
+// Quadrant 3: Lower Left (31-38), Quadrant 4: Lower Right (48-41)
+const UPPER_TEETH = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28]
+const LOWER_TEETH = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38]
 
 const TOOTH_NAMES: Record<number, string> = {
-    1: 'Upper Right 3rd Molar', 2: 'Upper Right 2nd Molar', 3: 'Upper Right 1st Molar', 4: 'Upper Right 2nd Premolar',
-    5: 'Upper Right 1st Premolar', 6: 'Upper Right Canine', 7: 'Upper Right Lateral Incisor', 8: 'Upper Right Central Incisor',
-    9: 'Upper Left Central Incisor', 10: 'Upper Left Lateral Incisor', 11: 'Upper Left Canine', 12: 'Upper Left 1st Premolar',
-    13: 'Upper Left 2nd Premolar', 14: 'Upper Left 1st Molar', 15: 'Upper Left 2nd Molar', 16: 'Upper Left 3rd Molar',
-    17: 'Lower Left 3rd Molar', 18: 'Lower Left 2nd Molar', 19: 'Lower Left 1st Molar', 20: 'Lower Left 2nd Premolar',
-    21: 'Lower Left 1st Premolar', 22: 'Lower Left Canine', 23: 'Lower Left Lateral Incisor', 24: 'Lower Left Central Incisor',
-    25: 'Lower Right Central Incisor', 26: 'Lower Right Lateral Incisor', 27: 'Lower Right Canine', 28: 'Lower Right 1st Premolar',
-    29: 'Lower Right 2nd Premolar', 30: 'Lower Right 1st Molar', 31: 'Lower Right 2nd Molar', 32: 'Lower Right 3rd Molar',
+    // Upper Right (Quadrant 1)
+    18: 'Upper Right 3rd Molar', 17: 'Upper Right 2nd Molar', 16: 'Upper Right 1st Molar', 15: 'Upper Right 2nd Premolar',
+    14: 'Upper Right 1st Premolar', 13: 'Upper Right Canine', 12: 'Upper Right Lateral Incisor', 11: 'Upper Right Central Incisor',
+    // Upper Left (Quadrant 2)
+    21: 'Upper Left Central Incisor', 22: 'Upper Left Lateral Incisor', 23: 'Upper Left Canine', 24: 'Upper Left 1st Premolar',
+    25: 'Upper Left 2nd Premolar', 26: 'Upper Left 1st Molar', 27: 'Upper Left 2nd Molar', 28: 'Upper Left 3rd Molar',
+    // Lower Left (Quadrant 3)
+    31: 'Lower Left Central Incisor', 32: 'Lower Left Lateral Incisor', 33: 'Lower Left Canine', 34: 'Lower Left 1st Premolar',
+    35: 'Lower Left 2nd Premolar', 36: 'Lower Left 1st Molar', 37: 'Lower Left 2nd Molar', 38: 'Lower Left 3rd Molar',
+    // Lower Right (Quadrant 4)
+    41: 'Lower Right Central Incisor', 42: 'Lower Right Lateral Incisor', 43: 'Lower Right Canine', 44: 'Lower Right 1st Premolar',
+    45: 'Lower Right 2nd Premolar', 46: 'Lower Right 1st Molar', 47: 'Lower Right 2nd Molar', 48: 'Lower Right 3rd Molar',
+}
+
+// Helper to classify tooth type by FDI number
+function getToothType(num: number): 'molar' | 'premolar' | 'canine' | 'incisor' {
+    const pos = num % 10 // last digit = tooth position in quadrant
+    if (pos >= 6) return 'molar'      // 6,7,8 = molars
+    if (pos >= 4) return 'premolar'   // 4,5 = premolars
+    if (pos === 3) return 'canine'    // 3 = canine
+    return 'incisor'                  // 1,2 = incisors
 }
 
 interface ToothCondition {
@@ -138,8 +153,9 @@ export default function DentalChartPage() {
     const ToothSVG = ({ num, isUpper }: { num: number; isUpper: boolean }) => {
         const color = getToothColor(num)
         const isSelected = selectedTooth === num
-        const isMolar = (num >= 1 && num <= 3) || (num >= 14 && num <= 16) || (num >= 17 && num <= 19) || (num >= 30 && num <= 32)
-        const isPremolar = (num >= 4 && num <= 5) || (num >= 12 && num <= 13) || (num >= 20 && num <= 21) || (num >= 28 && num <= 29)
+        const toothType = getToothType(num)
+        const isMolar = toothType === 'molar'
+        const isPremolar = toothType === 'premolar'
 
         return (
             <g
@@ -165,7 +181,7 @@ export default function DentalChartPage() {
                     />
                 ) : (
                     <rect
-                        x={4} y={isUpper ? 6 : 0} width={28} height={38} rx={isUpper ? 8 : 8}
+                        x={4} y={isUpper ? 6 : 0} width={28} height={38} rx={8}
                         fill={color}
                         stroke={isSelected ? '#3b82f6' : '#94a3b8'}
                         strokeWidth={isSelected ? 2.5 : 1}
@@ -186,7 +202,7 @@ export default function DentalChartPage() {
         <div className="space-y-6">
             <div>
                 <h1 className="text-2xl font-bold">Dental Chart</h1>
-                <p className="text-muted-foreground">Interactive tooth chart — click any tooth to record conditions</p>
+                <p className="text-muted-foreground">Interactive tooth chart (FDI notation) — click any tooth to record conditions</p>
             </div>
 
             {/* Patient Selector */}
@@ -224,7 +240,7 @@ export default function DentalChartPage() {
                 {/* Chart */}
                 <Card className="lg:col-span-2 border-border/50">
                     <CardHeader>
-                        <CardTitle className="text-base">Adult Dentition (32 Teeth)</CardTitle>
+                        <CardTitle className="text-base">Adult Dentition — FDI Notation (32 Teeth)</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col items-center gap-2">

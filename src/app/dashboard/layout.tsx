@@ -111,63 +111,53 @@ export default function DashboardLayout({
 
     if (!user) return null
 
-    const NavContent = () => (
-        <div className="flex flex-col h-full">
-            {/* Logo */}
-            <div className="flex items-center gap-2 px-4 h-16 border-b">
-                <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
-                    <span className="text-white font-bold text-sm">D</span>
-                </div>
-                {!sidebarCollapsed && (
-                    <span className="text-lg font-bold gradient-text">DentalHub</span>
-                )}
-            </div>
+    // Render nav items inline (NOT as an inline component) to prevent
+    // React from unmounting/remounting on every render which kills click events.
+    const renderNavLinks = (forMobile: boolean) => (
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+            {navItems.map((item) => {
+                const isActive = pathname === item.href ||
+                    (item.href !== '/dashboard' && pathname.startsWith(item.href))
+                return (
+                    <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={forMobile ? () => setMobileOpen(false) : undefined}
+                        className={cn(
+                            'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-200',
+                            isActive
+                                ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                        )}
+                    >
+                        <item.icon className="w-5 h-5 flex-shrink-0" />
+                        {(forMobile || !sidebarCollapsed) && <span>{item.label}</span>}
+                    </Link>
+                )
+            })}
+        </nav>
+    )
 
-            {/* Nav Links */}
-            <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-                {navItems.map((item) => {
-                    const isActive = pathname === item.href ||
-                        (item.href !== '/dashboard' && pathname.startsWith(item.href))
-                    return (
-                        <Link
-                            key={item.href}
-                            href={item.href}
-                            onClick={() => setMobileOpen(false)}
-                            className={cn(
-                                'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
-                                isActive
-                                    ? 'bg-primary text-primary-foreground shadow-md shadow-primary/25'
-                                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                            )}
-                        >
-                            <item.icon className="w-5 h-5 flex-shrink-0" />
-                            {!sidebarCollapsed && <span>{item.label}</span>}
-                        </Link>
-                    )
-                })}
-            </nav>
-
-            {/* Bottom section */}
-            <div className="p-3 border-t space-y-2">
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start"
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                >
-                    {mounted && theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
-                    {!sidebarCollapsed && (mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full justify-start text-destructive hover:text-destructive"
-                    onClick={handleLogout}
-                >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    {!sidebarCollapsed && 'Sign Out'}
-                </Button>
-            </div>
+    const renderBottomSection = (forMobile: boolean) => (
+        <div className="p-3 border-t space-y-2">
+            <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+                {mounted && theme === 'dark' ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                {(forMobile || !sidebarCollapsed) && (mounted && theme === 'dark' ? 'Light Mode' : 'Dark Mode')}
+            </Button>
+            <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-destructive hover:text-destructive"
+                onClick={handleLogout}
+            >
+                <LogOut className="w-4 h-4 mr-2" />
+                {(forMobile || !sidebarCollapsed) && 'Sign Out'}
+            </Button>
         </div>
     )
 
@@ -176,15 +166,26 @@ export default function DashboardLayout({
             {/* Desktop Sidebar */}
             <aside
                 className={cn(
-                    'hidden lg:flex flex-col border-r bg-card transition-all duration-300',
+                    'hidden lg:flex flex-col border-r bg-card relative transition-[width] duration-300',
                     sidebarCollapsed ? 'w-16' : 'w-64'
                 )}
             >
-                <NavContent />
+                <div className="flex flex-col h-full">
+                    {/* Logo */}
+                    <div className="flex items-center gap-2 px-4 h-16 border-b">
+                        <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-bold text-sm">D</span>
+                        </div>
+                        {!sidebarCollapsed && (
+                            <span className="text-lg font-bold gradient-text">DentalHub</span>
+                        )}
+                    </div>
+                    {renderNavLinks(false)}
+                    {renderBottomSection(false)}
+                </div>
                 <button
                     onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                    className="hidden lg:flex absolute top-20 -right-3 w-6 h-6 rounded-full border bg-card items-center justify-center shadow-md hover:bg-accent z-50"
-                    style={{ left: sidebarCollapsed ? '52px' : '248px' }}
+                    className="absolute top-20 -right-3 w-6 h-6 rounded-full border bg-card flex items-center justify-center shadow-md hover:bg-accent z-10"
                 >
                     <ChevronLeft className={cn('w-3 h-3 transition-transform', sidebarCollapsed && 'rotate-180')} />
                 </button>
@@ -203,7 +204,17 @@ export default function DashboardLayout({
                                 </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="w-64 p-0">
-                                <NavContent />
+                                <div className="flex flex-col h-full">
+                                    {/* Logo */}
+                                    <div className="flex items-center gap-2 px-4 h-16 border-b">
+                                        <div className="w-8 h-8 rounded-lg gradient-bg flex items-center justify-center flex-shrink-0">
+                                            <span className="text-white font-bold text-sm">D</span>
+                                        </div>
+                                        <span className="text-lg font-bold gradient-text">DentalHub</span>
+                                    </div>
+                                    {renderNavLinks(true)}
+                                    {renderBottomSection(true)}
+                                </div>
                             </SheetContent>
                         </Sheet>
 
