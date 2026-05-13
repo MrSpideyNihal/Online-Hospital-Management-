@@ -465,6 +465,13 @@ export default function PatientsPage() {
                                 <MapPin className="w-3 h-3" />
                                 Registered on {formatDate(selectedPatient.created_at)}
                             </div>
+                            <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30">
+                                <p className="text-xs text-blue-700 dark:text-blue-400 font-medium mb-1">Full Patient Report</p>
+                                <p className="text-xs text-muted-foreground mb-2">View complete history including visits, treatments, billing (paid/due), prescriptions and download as PDF.</p>
+                                <Button size="sm" variant="outline" className="w-full" onClick={() => window.open(`/qr/${selectedPatient.id}`, '_blank')}>
+                                    <Eye className="w-4 h-4 mr-1.5" /> View Full Report & Download PDF
+                                </Button>
+                            </div>
                         </div>
                     )}
                     <DialogFooter>
