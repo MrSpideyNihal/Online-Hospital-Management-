@@ -43,7 +43,6 @@ function openPrintPreview(data: any) {
     const hospName = esc(h?.name || 'Hospital')
     const hospAddr = [h?.address, h?.city, h?.state, h?.pincode].filter(Boolean).join(', ')
     const age = p.age != null ? `${p.age} yrs` : '—'
-    const allergies = (p.allergies || []).map((a: string) => esc(a)).join(', ') || 'None'
 
     const visitRows = (data.visits || []).map((v: any, i: number) =>
         `<tr><td>${i+1}</td><td>${esc(formatDate(v.visit_date))}</td><td>${esc(v.doctors?.full_name || '—')}</td><td>${esc(v.chief_complaint || '—')}</td><td>${esc(v.diagnosis || '—')}</td><td>${esc((v.status||'').replace('_',' '))}</td></tr>`
@@ -124,9 +123,17 @@ ${p.emergency_contact_name ? `<div style="margin-top:8px" class="grid2"><div cla
 <div class="section" style="margin-top:14px;color:#6b7280;font-size:11px">Generated on ${new Date().toLocaleString('en-IN')} • ${hospName} • Confidential Patient Record</div>
 </main></body></html>`
 
-    const popup = window.open('', '_blank', 'noopener,noreferrer,width=960,height=1100')
-    if (!popup) { alert('Popup blocked — please allow popups to download/print the report.'); return }
-    popup.document.open(); popup.document.write(html); popup.document.close()
+    // Use Blob URL instead of window.open('') to avoid popup blockers
+    // and the noopener/noreferrer issue that kills document.write()
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const popup = window.open(url, '_blank')
+    if (!popup) {
+        // Fallback: navigate current tab if popup blocked
+        window.location.href = url
+    }
+    // Clean up blob URL after a delay to allow the page to load
+    setTimeout(() => URL.revokeObjectURL(url), 60000)
 }
 
 export default function PatientFullProfile({ data }: Props) {

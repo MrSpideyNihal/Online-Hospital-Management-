@@ -170,7 +170,7 @@ CREATE TABLE dental_charts (
   hospital_id UUID NOT NULL REFERENCES hospitals(id) ON DELETE CASCADE,
   patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
   visit_id UUID REFERENCES visits(id),
-  tooth_number INTEGER NOT NULL CHECK (tooth_number >= 1 AND tooth_number <= 32),
+  tooth_number INTEGER NOT NULL CHECK (tooth_number BETWEEN 11 AND 18 OR tooth_number BETWEEN 21 AND 28 OR tooth_number BETWEEN 31 AND 38 OR tooth_number BETWEEN 41 AND 48),
   condition TEXT NOT NULL,
   surface TEXT,
   notes TEXT,
