@@ -190,7 +190,8 @@ export default function DentalChartPage() {
                 )}
                 <text
                     x={18} y={isUpper ? 26 : 24} textAnchor="middle"
-                    className="text-[10px] font-bold fill-gray-700 dark:fill-gray-200 pointer-events-none select-none"
+                    className="text-[10px] font-bold pointer-events-none select-none"
+                    fill="#1f2937"
                 >
                     {num}
                 </text>
