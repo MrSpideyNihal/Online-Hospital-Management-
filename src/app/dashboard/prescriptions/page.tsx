@@ -200,6 +200,24 @@ export default function PrescriptionsPage() {
                                         <Plus className="w-3 h-3 mr-1" /> Add Medicine
                                     </Button>
                                 </div>
+                                {/* Schedule preset language note */}
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                    <span className="text-xs text-muted-foreground">Quick Schedule:</span>
+                                    {[
+                                        { label: '1-0-1', value: '1-0-1' },
+                                        { label: '1-1-1', value: '1-1-1' },
+                                        { label: '1-0-0', value: '1-0-0' },
+                                        { label: '0-0-1', value: '0-0-1' },
+                                        { label: 'सुबह-दोपहर-रात (1-1-1)', value: 'सुबह-दोपहर-रात (1-1-1)' },
+                                        { label: 'सुबह-रात (1-0-1)', value: 'सुबह-रात (1-0-1)' },
+                                        { label: 'सुबह (1-0-0)', value: 'सकाळ (1-0-0)' },
+                                    ].map(preset => (
+                                        <Badge key={preset.value} variant="outline" className="text-[10px] cursor-pointer hover:bg-primary/10" onClick={() => {
+                                            // Apply to last medicine
+                                            if (medicines.length > 0) updateMedicine(medicines.length - 1, 'schedule', preset.value)
+                                        }}>{preset.label}</Badge>
+                                    ))}
+                                </div>
                                 {medicines.map((med, i) => (
                                     <div key={i} className="rounded-md border border-border/60 p-3 space-y-2">
                                         <div className="grid grid-cols-[0.4fr_1fr_1fr_0.6fr] gap-2">
@@ -213,7 +231,7 @@ export default function PrescriptionsPage() {
                                             <div className="space-y-1"><Label className="text-xs">Dose</Label><Input placeholder="500mg" value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} /></div>
                                         </div>
                                         <div className="grid grid-cols-[0.6fr_0.5fr_0.6fr_0.5fr_auto] gap-2 items-end">
-                                            <div className="space-y-1"><Label className="text-xs">Schedule (M-A-N)</Label><Input placeholder="1-0-1" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)} /></div>
+                                            <div className="space-y-1"><Label className="text-xs">Schedule (M-A-N)</Label><Input placeholder="1-0-1 or सुबह-रात" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)} /></div>
                                             <div className="space-y-1"><Label className="text-xs">Timing</Label>
                                                 <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.timing || ''} onChange={e => updateMedicine(i, 'timing', e.target.value)}>
                                                     <option value="">—</option><option>Before Food</option><option>After Food</option><option>With Food</option><option>Empty Stomach</option>

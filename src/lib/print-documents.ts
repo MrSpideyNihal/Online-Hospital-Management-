@@ -113,11 +113,12 @@ export function printDentalRx(opts: {
   }
 }) {
   const { hospital: h, doctor: d, patient: p, prescription: rx } = opts
-  const primaryColor = h?.primary_color || '#0e7490'
-  const sinceYear = h?.since_year ? `Since-${h.since_year}` : ''
-  const taglines = (h?.taglines || []).map(t => `<div style="font-size:11px;color:#065f46;">${esc(t)}</div>`).join('')
+  const sinceYear = h?.since_year ? `Since ${h.since_year}` : ''
+  const taglines = (h?.taglines || []).map(t => `<div style="font-size:12px;font-weight:600;color:#374151;">${esc(t)}</div>`).join('')
   const qualifications = d?.qualification || ''
   const logoUrl = h?.logo_url || ''
+  const addr = hospitalAddress(h)
+  const groupName = h?.institute_group_name || ''
 
   const numberedList = (items: string[] | undefined, label: string) => {
     if (!items?.length) return ''
@@ -125,22 +126,30 @@ export function printDentalRx(opts: {
     return `<div class="rx-section"><div class="rx-label">${esc(label)}:</div>${rows}</div>`
   }
 
-  const medsSection = (meds: any[]) => {
+  const medsTable = (meds: any[]) => {
     if (!meds?.length) return ''
     const rows = meds.map((m, i) => {
-      const parts = [
+      const nameStr = [
         m.form || 'Tab',
         m.name || '',
-        m.generic_name ? `(${m.generic_name}` : '',
-        m.dosage ? (m.generic_name ? `, ${m.dosage})` : `(${m.dosage})`) : (m.generic_name ? ')' : ''),
-        m.quantity ? `, ${m.quantity} ${m.form === 'Syp' ? 'ml' : 'Tablet(s)'}` : '',
-        m.schedule ? `, ${m.schedule}` : '',
-        m.timing ? `, ${m.timing}` : '',
-        m.duration ? `, ${m.duration}` : '',
+        m.generic_name ? `(${m.generic_name}${m.dosage ? ', ' + m.dosage : ''})` : (m.dosage ? `(${m.dosage})` : ''),
       ].filter(Boolean).join(' ')
-      return `<div>${i + 1}. ${esc(parts)}</div>`
+      return `<tr>
+        <td>${i + 1}</td>
+        <td>${esc(nameStr)}</td>
+        <td>${esc(m.quantity || '—')}</td>
+        <td>${esc(m.schedule || '—')}</td>
+        <td>${esc(m.timing || '—')}</td>
+        <td>${esc(m.duration || '—')}</td>
+      </tr>`
     }).join('')
-    return `<div class="rx-section"><div class="rx-label">Medication (Rx):</div>${rows}</div>`
+    return `<div class="rx-section">
+      <div class="rx-label">Medication (Rx):</div>
+      <table class="med-table">
+        <thead><tr><th>Sr</th><th>Medicine Name</th><th>Qty</th><th>Schedule</th><th>Timing</th><th>Duration</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`
   }
 
   const html = `<!doctype html>
@@ -150,26 +159,32 @@ export function printDentalRx(opts: {
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,sans-serif;color:#111;background:#f5f5f5}
 .page{max-width:820px;margin:12px auto;background:#fff;border:1px solid #ddd}
-.header{position:relative;display:flex;align-items:flex-start;justify-content:space-between;padding:16px 24px 12px;background:linear-gradient(135deg,${primaryColor}18,${primaryColor}08);border-bottom:4px solid ${primaryColor}}
-.header::after{content:'';position:absolute;bottom:-4px;left:0;right:0;height:4px;background:linear-gradient(90deg,${primaryColor},#2dd4bf,${primaryColor})}
-.hdr-left{display:flex;gap:12px;align-items:flex-start;flex:1}
-.hdr-logo{width:64px;height:64px;border-radius:12px;object-fit:contain;background:#f0fdfa;border:1px solid #ccfbf1}
-.hdr-logo-placeholder{width:64px;height:64px;border-radius:12px;background:linear-gradient(135deg,${primaryColor},#2dd4bf);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}
-.clinic-name{font-size:20px;font-weight:800;color:${primaryColor};margin-bottom:2px}
-.hdr-right{text-align:right;flex:1}
-.dr-name{font-size:18px;font-weight:800;color:#111}
-.dr-qual{font-size:11px;color:#374151;line-height:1.5}
-.since-badge{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:12px;letter-spacing:.04em}
-.patient-bar{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;padding:12px 24px;font-size:12px;border-bottom:2px solid #e5e7eb}
+.header{display:flex;align-items:center;padding:18px 24px;gap:16px;border-bottom:2px solid #111}
+.hdr-logo{width:80px;height:80px;object-fit:contain}
+.hdr-logo-placeholder{width:80px;height:80px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:28px}
+.hdr-center{flex:1;text-align:center}
+.hospital-name{font-size:24px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;color:#111}
+.group-name{font-size:13px;font-weight:700;color:#374151;margin-top:2px}
+.hdr-addr{font-size:11.5px;color:#4b5563;margin-top:4px;line-height:1.5}
+.since-badge{font-size:11px;color:#6b7280;font-style:italic;margin-top:2px}
+.patient-bar{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;padding:10px 24px;font-size:12px;border-bottom:1px solid #d1d5db}
 .patient-bar span{color:#6b7280}
 .patient-bar strong{color:#111;font-weight:600}
+.divider{height:1px;background:#d1d5db;margin:0 24px}
 .rx-body{padding:16px 24px 24px;min-height:320px}
 .rx-section{margin-bottom:14px}
 .rx-label{font-weight:700;font-size:13px;margin-bottom:3px;color:#111}
 .rx-section div:not(.rx-label){font-size:12.5px;line-height:1.7;color:#1f2937;padding-left:4px}
+table.med-table{width:100%;border-collapse:collapse;margin-top:4px}
+table.med-table th,table.med-table td{border:1px solid #d1d5db;padding:6px 8px;text-align:left;font-size:12px}
+table.med-table th{background:#f3f4f6;font-size:11px;text-transform:uppercase;font-weight:700;color:#374151}
+table.med-table td:first-child{width:30px;text-align:center}
+.dr-sign{text-align:right;margin-top:40px;padding:0 24px 20px}
+.dr-sign .name{font-weight:700;font-size:14px}
+.dr-sign .qual{font-size:11px;color:#374151;line-height:1.5}
 .actions{max-width:820px;margin:10px auto;display:flex;gap:8px}
 .btn{border:1px solid #d1d5db;background:#fff;color:#111;font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer}
-.btn.primary{background:${primaryColor};color:#fff;border-color:${primaryColor}}
+.btn.primary{background:#111;color:#fff;border-color:#111}
 @media print{
   body{background:#fff}.page{margin:0;border:none;box-shadow:none}
   .actions{display:none!important}
@@ -178,40 +193,42 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;color:#111;background:#f5f5f5}
 </style></head><body>
 <div class="actions">
   <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
-  <button class="btn" onclick="window.close()">Close</button>
+  <button class="btn" id="closeBtn">Close</button>
 </div>
 <div class="page">
   <div class="header">
-    <div class="hdr-left">
-      ${logoUrl ? `<img class="hdr-logo" src="${esc(logoUrl)}" alt="Logo">` : `<div class="hdr-logo-placeholder">${esc((h?.name || 'C')[0])}</div>`}
-      <div>
-        <div class="clinic-name">${esc(h?.name || 'Clinic')}</div>
-        ${taglines}
-      </div>
-    </div>
-    ${sinceYear ? `<div class="since-badge">${esc(sinceYear)}</div>` : ''}
-    <div class="hdr-right">
-      <div class="dr-name">${esc(d?.full_name || 'Doctor')}</div>
-      <div class="dr-qual">${esc(qualifications).replace(/,/g, '<br>')}</div>
+    ${logoUrl ? `<img class="hdr-logo" src="${esc(logoUrl)}" alt="Logo">` : `<div class="hdr-logo-placeholder">${esc((h?.name || 'C')[0])}</div>`}
+    <div class="hdr-center">
+      <div class="hospital-name">${esc(h?.name || 'Clinic')}</div>
+      ${groupName ? `<div class="group-name">(${esc(groupName)})</div>` : ''}
+      ${taglines}
+      <div class="hdr-addr">${esc(addr)}${h?.phone ? `, Mob. No : ${esc(h.phone)}` : ''}</div>
+      ${sinceYear ? `<div class="since-badge">${esc(sinceYear)}</div>` : ''}
     </div>
   </div>
   <div class="patient-bar">
-    <div><span>Patient Name & ID: </span><strong>${esc(p?.full_name || '—')}, ${esc(p?.patient_id_number || '—')}</strong></div>
+    <div><span>Patient Name & Patient id: </span><strong>${esc(p?.full_name || '—')}, ${esc(p?.patient_id_number || '—')}</strong></div>
     <div><span>Date & Time: </span><strong>${fmtDateTime(rx.created_at)}</strong></div>
     <div><span>Age/Gender: </span><strong>${esc(p?.date_of_birth ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31557600000) + 'y' : '—')}, ${esc(p?.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : '—')}</strong></div>
     <div><span>Mobile No: </span><strong>${esc(p?.phone || '—')}</strong></div>
-    <div><span>Height/Weight: </span><strong>${esc(p?.height || '—')} / ${esc(p?.weight || '—')}</strong></div>
-    <div><span>Blood Group: </span><strong>${esc(p?.blood_group || '—')}</strong></div>
-    <div><span>Address: </span><strong>${esc(p?.address || '—')}</strong></div>
-    <div><span>Consultation Type: </span><strong>${esc(rx.consultation_type || '—')}</strong></div>
+    <div><span>Height/Weight: </span><strong>${esc(p?.height || '-')} / ${esc(p?.weight || '-')}</strong></div>
+    <div><span>Blood Group: </span><strong>${esc(p?.blood_group || '-')}</strong></div>
+    <div><span>Address: </span><strong>${esc(p?.address || '-')}</strong></div>
+    <div><span>Consultation Type: </span><strong>${esc(rx.consultation_type || '-')}</strong></div>
   </div>
+  <div class="divider"></div>
   <div class="rx-body">
     ${numberedList(rx.symptoms, 'Symptoms')}
     ${numberedList(rx.examinations, 'Examinations')}
-    ${medsSection(rx.medicines || [])}
+    ${medsTable(rx.medicines || [])}
     ${numberedList(rx.advices, 'Advices')}
     ${numberedList(rx.lab_investigation, 'Lab Investigation')}
     ${rx.follow_up ? `<div class="rx-section"><div class="rx-label">Follow-up:</div><div>${esc(rx.follow_up)}</div></div>` : ''}
+  </div>
+  <div class="dr-sign">
+    <div class="name">${esc(d?.full_name || 'Doctor')}</div>
+    <div class="qual">${esc(qualifications).replace(/,/g, '<br>')}</div>
+    <div class="qual">Reg. No. ${esc(d?.license_number || '')}</div>
   </div>
 </div></body></html>`
 

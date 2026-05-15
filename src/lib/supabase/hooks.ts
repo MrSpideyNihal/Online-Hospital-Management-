@@ -502,7 +502,7 @@ export function usePrescriptions(hospitalId: string | null) {
             if (!hospitalId) return []
             const { data, error } = await supabase
                 .from('prescriptions')
-                .select('*, patients(full_name), doctors(full_name)')
+                .select('*, patients(full_name, patient_id_number, phone, blood_group, date_of_birth, gender, address, height, weight), doctors(full_name, qualification, license_number)')
                 .eq('hospital_id', hospitalId)
                 .order('created_at', { ascending: false })
             if (error) throw error
