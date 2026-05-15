@@ -158,33 +158,47 @@ export function printDentalRx(opts: {
 :root{color-scheme:light}
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Segoe UI',Tahoma,sans-serif;color:#111;background:#f5f5f5}
-.page{max-width:820px;margin:12px auto;background:#fff;border:1px solid #ddd}
-.header{display:flex;align-items:center;padding:18px 24px;gap:16px;border-bottom:2px solid #111}
-.hdr-logo{width:80px;height:80px;object-fit:contain}
-.hdr-logo-placeholder{width:80px;height:80px;border-radius:8px;background:#111;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:28px}
-.hdr-center{flex:1;text-align:center}
-.hospital-name{font-size:24px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;color:#111}
+.page{max-width:820px;margin:12px auto;background:#fff;border:1px solid #ddd;overflow:hidden}
+
+/* ── Fancy Teal Wave Banner ── */
+.wave-banner{position:relative;height:100px;background:linear-gradient(135deg,#0e7490 0%,#14b8a6 40%,#0d9488 70%,#0e7490 100%);overflow:hidden}
+.wave-banner::before{content:'';position:absolute;top:-60px;right:-80px;width:500px;height:500px;border-radius:50%;background:rgba(255,255,255,0.06)}
+.wave-banner::after{content:'';position:absolute;bottom:-30px;left:0;right:0;height:50px;background:#fff;border-radius:50% 50% 0 0 / 100% 100% 0 0}
+.wave-inner{position:absolute;bottom:-20px;left:0;right:0;height:40px;background:linear-gradient(90deg,rgba(13,148,136,0.4),rgba(20,184,166,0.2),rgba(13,148,136,0.4));border-radius:50% 50% 0 0 / 100% 100% 0 0;z-index:1}
+.wave-accent{position:absolute;top:0;left:-100px;width:600px;height:200px;border-radius:0 0 50% 0;background:linear-gradient(180deg,rgba(255,255,255,0.1) 0%,transparent 100%)}
+
+/* ── Medical Cross Icon ── */
+.cross-icon{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);z-index:3;width:40px;height:40px;background:#fff;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center}
+.cross-icon svg{width:22px;height:22px}
+
+/* ── Hospital Info Below Wave ── */
+.hdr-info{text-align:center;padding:28px 24px 14px;border-bottom:2px solid #e5e7eb}
+.hdr-info-flex{display:flex;align-items:center;justify-content:center;gap:16px}
+.hdr-logo{width:70px;height:70px;object-fit:contain;border-radius:8px}
+.hdr-logo-placeholder{width:70px;height:70px;border-radius:8px;background:linear-gradient(135deg,#0e7490,#14b8a6);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:26px}
+.hospital-name{font-size:24px;font-weight:900;text-transform:uppercase;letter-spacing:.03em;color:#0e7490}
 .group-name{font-size:13px;font-weight:700;color:#374151;margin-top:2px}
 .hdr-addr{font-size:11.5px;color:#4b5563;margin-top:4px;line-height:1.5}
-.since-badge{font-size:11px;color:#6b7280;font-style:italic;margin-top:2px}
+.since-badge{display:inline-block;margin-top:4px;font-size:10px;font-weight:700;color:#fff;background:#0e7490;padding:2px 10px;border-radius:10px;letter-spacing:.04em}
+
 .patient-bar{display:grid;grid-template-columns:1fr 1fr;gap:3px 20px;padding:10px 24px;font-size:12px;border-bottom:1px solid #d1d5db}
 .patient-bar span{color:#6b7280}
 .patient-bar strong{color:#111;font-weight:600}
 .divider{height:1px;background:#d1d5db;margin:0 24px}
 .rx-body{padding:16px 24px 24px;min-height:320px}
 .rx-section{margin-bottom:14px}
-.rx-label{font-weight:700;font-size:13px;margin-bottom:3px;color:#111}
+.rx-label{font-weight:700;font-size:13px;margin-bottom:3px;color:#0e7490}
 .rx-section div:not(.rx-label){font-size:12.5px;line-height:1.7;color:#1f2937;padding-left:4px}
 table.med-table{width:100%;border-collapse:collapse;margin-top:4px}
 table.med-table th,table.med-table td{border:1px solid #d1d5db;padding:6px 8px;text-align:left;font-size:12px}
-table.med-table th{background:#f3f4f6;font-size:11px;text-transform:uppercase;font-weight:700;color:#374151}
+table.med-table th{background:linear-gradient(135deg,#f0fdfa,#ecfeff);font-size:11px;text-transform:uppercase;font-weight:700;color:#0e7490}
 table.med-table td:first-child{width:30px;text-align:center}
 .dr-sign{text-align:right;margin-top:40px;padding:0 24px 20px}
-.dr-sign .name{font-weight:700;font-size:14px}
+.dr-sign .name{font-weight:700;font-size:14px;color:#0e7490}
 .dr-sign .qual{font-size:11px;color:#374151;line-height:1.5}
 .actions{max-width:820px;margin:10px auto;display:flex;gap:8px}
 .btn{border:1px solid #d1d5db;background:#fff;color:#111;font-size:13px;padding:7px 14px;border-radius:8px;cursor:pointer}
-.btn.primary{background:#111;color:#fff;border-color:#111}
+.btn.primary{background:linear-gradient(135deg,#0e7490,#14b8a6);color:#fff;border-color:#0e7490}
 @media print{
   body{background:#fff}.page{margin:0;border:none;box-shadow:none}
   .actions{display:none!important}
@@ -196,15 +210,26 @@ table.med-table td:first-child{width:30px;text-align:center}
   <button class="btn" id="closeBtn">Close</button>
 </div>
 <div class="page">
-  <div class="header">
-    ${logoUrl ? `<img class="hdr-logo" src="${esc(logoUrl)}" alt="Logo">` : `<div class="hdr-logo-placeholder">${esc((h?.name || 'C')[0])}</div>`}
-    <div class="hdr-center">
-      <div class="hospital-name">${esc(h?.name || 'Clinic')}</div>
-      ${groupName ? `<div class="group-name">(${esc(groupName)})</div>` : ''}
-      ${taglines}
-      <div class="hdr-addr">${esc(addr)}${h?.phone ? `, Mob. No : ${esc(h.phone)}` : ''}</div>
-      ${sinceYear ? `<div class="since-badge">${esc(sinceYear)}</div>` : ''}
+  <!-- Teal Wave Banner -->
+  <div class="wave-banner">
+    <div class="wave-accent"></div>
+    <div class="wave-inner"></div>
+    <div class="cross-icon">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="9" y="2" width="6" height="20" rx="1.5" fill="#0e7490"/><rect x="2" y="9" width="20" height="6" rx="1.5" fill="#0e7490"/></svg>
     </div>
+  </div>
+  <!-- Hospital Info -->
+  <div class="hdr-info">
+    <div class="hdr-info-flex">
+      ${logoUrl ? `<img class="hdr-logo" src="${esc(logoUrl)}" alt="Logo">` : ''}
+      <div>
+        <div class="hospital-name">${esc(h?.name || 'Clinic')}</div>
+        ${groupName ? `<div class="group-name">(${esc(groupName)})</div>` : ''}
+        ${taglines}
+      </div>
+    </div>
+    <div class="hdr-addr">${esc(addr)}${h?.phone ? ` | Mob. No : ${esc(h.phone)}` : ''}</div>
+    ${sinceYear ? `<div class="since-badge">${esc(sinceYear)}</div>` : ''}
   </div>
   <div class="patient-bar">
     <div><span>Patient Name & Patient id: </span><strong>${esc(p?.full_name || '—')}, ${esc(p?.patient_id_number || '—')}</strong></div>
