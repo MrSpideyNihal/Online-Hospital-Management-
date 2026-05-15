@@ -237,11 +237,11 @@ export default function BillingPage() {
         const openBillPrintPreview = (invoice: any) => {
                 if (typeof window === 'undefined') return
 
-                const popup = window.open('', '_blank', 'noopener,noreferrer,width=920,height=1100')
-                if (!popup) {
-                        toast.error('Popup blocked. Please allow popups to print or save PDF bills.')
-                        return
-                }
+                // Clean up any existing print frame
+                const existingFrame = document.getElementById('__print_frame')
+                if (existingFrame) existingFrame.remove()
+                const existingOverlay = document.getElementById('__print_overlay')
+                if (existingOverlay) existingOverlay.remove()
 
                 const billItems = safeInvoiceItems(invoice.items)
                 const rowsHtml = billItems.length > 0
@@ -302,7 +302,7 @@ export default function BillingPage() {
 <body>
     <div class="actions">
         <button class="btn primary" onclick="window.print()">Print / Save as PDF</button>
-        <button class="btn" onclick="window.close()">Close</button>
+        <button class="btn" id="closeBtn">Close</button>
     </div>
     <main class="sheet">
         <section class="header">
@@ -357,9 +357,39 @@ export default function BillingPage() {
 </body>
 </html>`
 
-                popup.document.open()
-                popup.document.write(printHtml)
-                popup.document.close()
+                // Create overlay with close button
+                const overlay = document.createElement('div')
+                overlay.id = '__print_overlay'
+                overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99998;background:rgba(0,0,0,0.3);'
+                const closeOverlayBtn = document.createElement('button')
+                closeOverlayBtn.textContent = '\u2715 Close Preview'
+                closeOverlayBtn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:100001;background:#111;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);'
+                document.body.appendChild(overlay)
+
+                const iframe = document.createElement('iframe')
+                iframe.id = '__print_frame'
+                iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;border:none;background:#fff;'
+                document.body.appendChild(iframe)
+
+                const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+                if (!iframeDoc) { iframe.remove(); overlay.remove(); return }
+
+                iframeDoc.open()
+                iframeDoc.write(printHtml)
+                iframeDoc.close()
+
+                const cleanup = () => { iframe.remove(); overlay.remove() }
+                closeOverlayBtn.onclick = cleanup
+                overlay.appendChild(closeOverlayBtn)
+
+                iframe.contentWindow?.addEventListener('load', () => {
+                    const closeBtn = iframeDoc.getElementById('closeBtn')
+                    if (closeBtn) closeBtn.onclick = cleanup
+                })
+                iframe.contentWindow?.addEventListener('afterprint', cleanup)
+                iframe.contentWindow?.addEventListener('keydown', (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup() })
+                const parentEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') { cleanup(); window.removeEventListener('keydown', parentEsc) } }
+                window.addEventListener('keydown', parentEsc)
         }
 
     const openHospitalBillPrint = (invoice: any) => {
