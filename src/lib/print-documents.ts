@@ -36,18 +36,37 @@ const fmtDateTime = (d: string | Date | null | undefined) => {
   }).format(new Date(d))
 }
 
-function openPrintWindow(html: string, title: string) {
+function openPrintWindow(html: string, _title: string) {
   if (typeof window === 'undefined') return
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const w = window.open(url, '_blank')
-  if (!w) {
-    URL.revokeObjectURL(url)
-    alert('Popup blocked. Please allow popups to print documents.')
-    return
-  }
-  w.addEventListener('afterprint', () => URL.revokeObjectURL(url))
-  setTimeout(() => URL.revokeObjectURL(url), 120_000)
+
+  // Use a hidden iframe to avoid popup blockers
+  const existingFrame = document.getElementById('__print_frame') as HTMLIFrameElement | null
+  if (existingFrame) existingFrame.remove()
+
+  const iframe = document.createElement('iframe')
+  iframe.id = '__print_frame'
+  iframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99999;border:none;background:#fff;'
+  document.body.appendChild(iframe)
+
+  const doc = iframe.contentDocument || iframe.contentWindow?.document
+  if (!doc) { iframe.remove(); return }
+
+  doc.open()
+  doc.write(html)
+  doc.close()
+
+  // Replace "Close" button behavior to remove iframe instead of window.close()
+  iframe.contentWindow?.addEventListener('load', () => {
+    const closeBtn = doc.querySelector('.btn:not(.primary)') as HTMLButtonElement | null
+    if (closeBtn) {
+      closeBtn.onclick = () => iframe.remove()
+    }
+  })
+
+  // Also allow Escape key to close
+  iframe.contentWindow?.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Escape') iframe.remove()
+  })
 }
 
 function hospitalAddress(h: Hospital | null) {
