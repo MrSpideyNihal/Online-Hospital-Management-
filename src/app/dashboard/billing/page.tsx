@@ -18,7 +18,8 @@ import {
 import { Plus, Loader2, Trash2, CheckCircle, Clock, AlertCircle, Printer } from 'lucide-react'
 import { formatDate, formatCurrency } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
-import { useInvoices, useCreateInvoice, useUpdateInvoice, usePatients, useHospitalServices } from '@/lib/supabase/hooks'
+import { useInvoices, useCreateInvoice, useUpdateInvoice, usePatients, useHospitalServices, useDoctors } from '@/lib/supabase/hooks'
+import { printHospitalBill } from '@/lib/print-documents'
 import { toast } from 'sonner'
 import type { InvoiceItem } from '@/types/database'
 
@@ -99,6 +100,7 @@ export default function BillingPage() {
     const { data: invoices = [], isLoading, isError } = useInvoices(hospitalId)
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: procedureServices = [] } = useHospitalServices(hospitalId)
+    const { data: doctors = [] } = useDoctors(hospitalId)
     const createInvoice = useCreateInvoice()
     const updateInvoice = useUpdateInvoice()
 
@@ -130,6 +132,12 @@ export default function BillingPage() {
     const [fDiscount, setFDiscount] = useState('0')
     const [fTax, setFTax] = useState('0')
     const [fNotes, setFNotes] = useState('')
+    const [fBillType, setFBillType] = useState<'treatment' | 'hospital'>('treatment')
+    const [fDoctor, setFDoctor] = useState('')
+    const [fAdmissionDate, setFAdmissionDate] = useState('')
+    const [fDischargeDate, setFDischargeDate] = useState('')
+    const [fUhid, setFUhid] = useState('')
+    const [fPaymentMode, setFPaymentMode] = useState('')
     const [items, setItems] = useState<InvoiceItem[]>([createBlankItem()])
 
     const addProcedureTemplate = (template: DentalProcedureTemplate) => {
@@ -169,6 +177,12 @@ export default function BillingPage() {
         setFDiscount('0')
         setFTax('0')
         setFNotes('')
+        setFBillType('treatment')
+        setFDoctor('')
+        setFAdmissionDate('')
+        setFDischargeDate('')
+        setFUhid('')
+        setFPaymentMode('')
         setItems([createBlankItem()])
     }
 
@@ -191,7 +205,13 @@ export default function BillingPage() {
             total: grandTotal,
             payment_status: 'pending',
             notes: fNotes.trim() || null,
-        }, {
+            bill_type: fBillType,
+            doctor_id: fDoctor || null,
+            admission_date: fAdmissionDate || null,
+            discharge_date: fDischargeDate || null,
+            uhid: fUhid.trim() || null,
+            payment_mode: fPaymentMode.trim() || null,
+        } as any, {
             onSuccess: () => { toast.success('Treatment bill created'); setIsAddOpen(false); resetForm() },
             onError: (e) => toast.error(e.message),
         })
@@ -342,6 +362,30 @@ export default function BillingPage() {
                 popup.document.close()
         }
 
+    const openHospitalBillPrint = (invoice: any) => {
+        const patient = patients.find(p => p.id === invoice.patient_id) || invoice.patients || null
+        const doctor = invoice.doctor_id ? doctors.find(d => d.id === invoice.doctor_id) : null
+        printHospitalBill({
+            hospital,
+            doctor: doctor || null,
+            patient: patient ? { ...patient, full_name: patient.full_name } : null,
+            invoice: {
+                invoice_number: invoice.invoice_number,
+                created_at: invoice.created_at,
+                items: safeInvoiceItems(invoice.items),
+                subtotal: invoice.subtotal,
+                tax: invoice.tax,
+                discount: invoice.discount,
+                total: invoice.total,
+                payment_status: invoice.payment_status,
+                payment_mode: invoice.payment_mode,
+                admission_date: invoice.admission_date,
+                discharge_date: invoice.discharge_date,
+                uhid: invoice.uhid,
+            },
+        })
+    }
+
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
     }
@@ -371,8 +415,16 @@ export default function BillingPage() {
                         </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                        <DialogHeader><DialogTitle>Create Treatment Invoice</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle>Create Treatment / Hospital Bill</DialogTitle></DialogHeader>
                         <div className="grid gap-4 py-4">
+                            {/* Bill Type Toggle */}
+                            <div className="space-y-1.5">
+                                <Label>Bill Type</Label>
+                                <div className="flex gap-2">
+                                    <Button type="button" variant={fBillType === 'treatment' ? 'default' : 'outline'} size="sm" onClick={() => setFBillType('treatment')}>Treatment Bill</Button>
+                                    <Button type="button" variant={fBillType === 'hospital' ? 'default' : 'outline'} size="sm" onClick={() => setFBillType('hospital')}>Hospital Bill</Button>
+                                </div>
+                            </div>
                             <div className="space-y-1.5">
                                 <Label>Patient *</Label>
                                 <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fPatient} onChange={e => setFPatient(e.target.value)}>
@@ -385,6 +437,39 @@ export default function BillingPage() {
                                     </p>
                                 )}
                             </div>
+
+                            {/* Hospital Bill extra fields */}
+                            {fBillType === 'hospital' && (
+                                <div className="rounded-lg border border-border/60 p-4 space-y-4 bg-muted/30">
+                                    <p className="text-sm font-medium text-muted-foreground">Hospital Bill Details</p>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1.5">
+                                            <Label>Doctor</Label>
+                                            <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fDoctor} onChange={e => setFDoctor(e.target.value)}>
+                                                <option value="">Select doctor</option>
+                                                {doctors.filter(d => d.is_active).map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label>UHID</Label>
+                                            <Input placeholder="e.g. 2026.04.00307" value={fUhid} onChange={e => setFUhid(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label>Date of Admission</Label>
+                                            <Input type="datetime-local" value={fAdmissionDate} onChange={e => setFAdmissionDate(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label>Date of Discharge</Label>
+                                            <Input type="datetime-local" value={fDischargeDate} onChange={e => setFDischargeDate(e.target.value)} />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label>Payment Mode</Label>
+                                            <Input placeholder="Cash / UPI / Card" value={fPaymentMode} onChange={e => setFPaymentMode(e.target.value)} />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <Label className="text-sm font-medium">Common Dental Procedures</Label>
                                 <div className="flex flex-wrap gap-2">
@@ -509,10 +594,18 @@ export default function BillingPage() {
                                                 </DropdownMenu>
                                             </TableCell>
                                             <TableCell>
-                                                <Button variant="outline" size="sm" onClick={() => openBillPrintPreview(inv)}>
-                                                    <Printer className="w-3.5 h-3.5 mr-1.5" />
-                                                    Print
-                                                </Button>
+                                                <div className="flex gap-1">
+                                                    <Button variant="outline" size="sm" onClick={() => openBillPrintPreview(inv)}>
+                                                        <Printer className="w-3.5 h-3.5 mr-1" />
+                                                        Bill
+                                                    </Button>
+                                                    {(inv.bill_type === 'hospital' || inv.admission_date) && (
+                                                        <Button variant="outline" size="sm" onClick={() => openHospitalBillPrint(inv)} title="Hospital Bill Format">
+                                                            <Printer className="w-3.5 h-3.5 mr-1" />
+                                                            Hosp
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </TableCell>
                                         </TableRow>
                                     )

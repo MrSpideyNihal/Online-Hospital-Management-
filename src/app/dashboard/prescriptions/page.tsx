@@ -12,13 +12,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose,
 } from '@/components/ui/dialog'
-import { Plus, Loader2, Trash2, Download } from 'lucide-react'
+import { Plus, Loader2, Trash2, Printer } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { useAuth } from '@/lib/auth-context'
 import { usePrescriptions, useCreatePrescription, usePatients, useDoctors } from '@/lib/supabase/hooks'
+import { printDentalRx } from '@/lib/print-documents'
 import { toast } from 'sonner'
-import type { Medicine, Prescription } from '@/types/database'
-import jsPDF from 'jspdf'
+import type { Medicine } from '@/types/database'
+
+const BLANK_MED: Medicine = { name: '', generic_name: '', dosage: '', frequency: '', duration: '', form: 'Tab', timing: 'After Food', schedule: '1-0-1' }
 
 export default function PrescriptionsPage() {
     const { hospitalId, hospital } = useAuth()
@@ -30,154 +32,112 @@ export default function PrescriptionsPage() {
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [fPatient, setFPatient] = useState('')
     const [fDoctor, setFDoctor] = useState('')
-    const [fDiagnosis, setFDiagnosis] = useState('')
-    const [fInstructions, setFInstructions] = useState('')
-    const [medicines, setMedicines] = useState<Medicine[]>([{ name: '', dosage: '', frequency: '', duration: '' }])
+    const [fConsultationType, setFConsultationType] = useState('')
+    const [fFollowUp, setFFollowUp] = useState('')
+
+    // List fields
+    const [symptoms, setSymptoms] = useState<string[]>([''])
+    const [examinations, setExaminations] = useState<string[]>([''])
+    const [advices, setAdvices] = useState<string[]>([''])
+    const [labInvestigation, setLabInvestigation] = useState<string[]>([''])
+    const [medicines, setMedicines] = useState<Medicine[]>([{ ...BLANK_MED }])
 
     const resetForm = () => {
-        setFPatient(''); setFDoctor(''); setFDiagnosis(''); setFInstructions('')
-        setMedicines([{ name: '', dosage: '', frequency: '', duration: '' }])
+        setFPatient(''); setFDoctor(''); setFConsultationType(''); setFFollowUp('')
+        setSymptoms(['']); setExaminations(['']); setAdvices(['']); setLabInvestigation([''])
+        setMedicines([{ ...BLANK_MED }])
     }
 
-    const generatePDF = (rx: Prescription & { patients?: { full_name: string }; doctors?: { full_name: string } }) => {
-        const doc = new jsPDF()
-        const hospitalName = hospital?.name || 'DentalHub Clinic'
-        const hospitalAddr = hospital?.address || ''
-        const hospitalPhone = hospital?.phone || ''
-
-        // Header
-        doc.setFillColor(37, 99, 235)
-        doc.rect(0, 0, 210, 35, 'F')
-        doc.setTextColor(255, 255, 255)
-        doc.setFontSize(20)
-        doc.setFont('helvetica', 'bold')
-        doc.text(hospitalName, 15, 18)
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        if (hospitalAddr) doc.text(hospitalAddr, 15, 26)
-        if (hospitalPhone) doc.text(`Phone: ${hospitalPhone}`, 15, 31)
-
-        // Prescription title
-        doc.setTextColor(0, 0, 0)
-        doc.setFontSize(16)
-        doc.setFont('helvetica', 'bold')
-        doc.text('PRESCRIPTION', 15, 50)
-
-        // Date
-        doc.setFontSize(9)
-        doc.setFont('helvetica', 'normal')
-        doc.setTextColor(100, 100, 100)
-        doc.text(`Date: ${formatDate(rx.created_at)}`, 150, 50)
-
-        // Patient & Doctor info
-        let y = 62
-        doc.setFontSize(10)
-        doc.setTextColor(0, 0, 0)
-        doc.setFont('helvetica', 'bold')
-        doc.text('Patient:', 15, y)
-        doc.setFont('helvetica', 'normal')
-        doc.text(rx.patients?.full_name || '—', 45, y)
-
-        doc.setFont('helvetica', 'bold')
-        doc.text('Doctor:', 120, y)
-        doc.setFont('helvetica', 'normal')
-        doc.text(rx.doctors?.full_name || '—', 145, y)
-        y += 8
-
-        if (rx.diagnosis) {
-            doc.setFont('helvetica', 'bold')
-            doc.text('Diagnosis:', 15, y)
-            doc.setFont('helvetica', 'normal')
-            doc.text(rx.diagnosis, 45, y)
-            y += 8
-        }
-
-        // Separator
-        doc.setDrawColor(200, 200, 200)
-        doc.line(15, y, 195, y)
-        y += 8
-
-        // Medicines table header
-        doc.setFillColor(245, 245, 245)
-        doc.rect(15, y - 5, 180, 8, 'F')
-        doc.setFont('helvetica', 'bold')
-        doc.setFontSize(9)
-        doc.text('#', 18, y)
-        doc.text('Medicine', 28, y)
-        doc.text('Dosage', 90, y)
-        doc.text('Frequency', 125, y)
-        doc.text('Duration', 165, y)
-        y += 8
-
-        // Medicines rows
-        doc.setFont('helvetica', 'normal')
-        ;(rx.medicines || []).forEach((med: Medicine, i: number) => {
-            if (y > 265) { doc.addPage(); y = 20 }
-            doc.text(`${i + 1}`, 18, y)
-            doc.text(med.name || '', 28, y)
-            doc.text(med.dosage || '', 90, y)
-            doc.text(med.frequency || '', 125, y)
-            doc.text(med.duration || '', 165, y)
-            y += 7
-        })
-
-        y += 5
-        doc.setDrawColor(200, 200, 200)
-        doc.line(15, y, 195, y)
-        y += 10
-
-        // Instructions
-        if (rx.instructions) {
-            doc.setFont('helvetica', 'bold')
-            doc.setFontSize(10)
-            doc.text('Instructions:', 15, y)
-            y += 6
-            doc.setFont('helvetica', 'normal')
-            doc.setFontSize(9)
-            const lines = doc.splitTextToSize(rx.instructions, 170)
-            doc.text(lines, 15, y)
-            y += lines.length * 5 + 10
-        }
-
-        // Signature area
-        doc.setDrawColor(150, 150, 150)
-        doc.line(130, y + 15, 190, y + 15)
-        doc.setFontSize(9)
-        doc.setTextColor(100, 100, 100)
-        doc.text("Doctor's Signature", 140, y + 21)
-
-        // Footer
-        doc.setFontSize(8)
-        doc.setTextColor(150, 150, 150)
-        doc.text('Generated by DentalHub — www.dentalhub.in', 15, 285)
-
-        const patientName = (rx.patients?.full_name || 'prescription').replace(/\s+/g, '_')
-        doc.save(`prescription_${patientName}_${new Date(rx.created_at).toISOString().split('T')[0]}.pdf`)
-        toast.success('PDF downloaded')
+    const updateListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, idx: number, val: string) => {
+        setter(prev => prev.map((v, i) => i === idx ? val : v))
+    }
+    const addListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
+        setter(prev => [...prev, ''])
+    }
+    const removeListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, idx: number) => {
+        setter(prev => prev.filter((_, i) => i !== idx))
     }
 
-    const updateMedicine = (i: number, field: keyof Medicine, value: string) => {
+    const updateMedicine = (i: number, field: keyof Medicine, value: string | number) => {
         setMedicines(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: value } : m))
+    }
+
+    const handlePrint = (rx: any) => {
+        const patient = patients.find(p => p.id === rx.patient_id) || rx.patients || null
+        const doctor = doctors.find(d => d.id === rx.doctor_id) || rx.doctors || null
+        printDentalRx({
+            hospital,
+            doctor: doctor ? { ...doctor, full_name: doctor.full_name } : null,
+            patient: patient ? { ...patient, full_name: patient.full_name } : null,
+            prescription: {
+                created_at: rx.created_at,
+                symptoms: rx.symptoms || [],
+                examinations: rx.examinations || [],
+                medicines: rx.medicines || [],
+                advices: rx.advices || [],
+                lab_investigation: rx.lab_investigation || [],
+                follow_up: rx.follow_up,
+                consultation_type: rx.consultation_type,
+            },
+        })
     }
 
     const handleCreate = () => {
         if (!hospitalId || !fPatient || !fDoctor) { toast.error('Patient and Doctor are required'); return }
         const validMeds = medicines.filter(m => m.name.trim())
         if (validMeds.length === 0) { toast.error('Add at least one medicine'); return }
-        const incompleteMed = validMeds.find(m => !m.dosage?.trim() || !m.frequency?.trim() || !m.duration?.trim())
-        if (incompleteMed) { toast.error(`Complete all fields for medicine: ${incompleteMed.name}`); return }
+
         createPrescription.mutate({
             hospital_id: hospitalId,
             patient_id: fPatient,
             doctor_id: fDoctor,
-            diagnosis: fDiagnosis || null,
-            instructions: fInstructions || null,
+            diagnosis: null,
+            instructions: null,
             medicines: validMeds,
-        }, {
+            symptoms: symptoms.filter(s => s.trim()),
+            examinations: examinations.filter(e => e.trim()),
+            advices: advices.filter(a => a.trim()),
+            lab_investigation: labInvestigation.filter(l => l.trim()),
+            follow_up: fFollowUp.trim() || null,
+            consultation_type: fConsultationType.trim() || null,
+        } as any, {
             onSuccess: () => { toast.success('Prescription created'); setIsAddOpen(false); resetForm() },
-            onError: (e) => toast.error(e.message),
+            onError: (e: any) => toast.error(e.message),
         })
     }
+
+    // Numbered list field builder
+    const renderListField = (
+        label: string,
+        items: string[],
+        setter: React.Dispatch<React.SetStateAction<string[]>>,
+        placeholder: string,
+    ) => (
+        <div className="space-y-2">
+            <div className="flex items-center justify-between">
+                <Label className="text-sm font-medium">{label}</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => addListItem(setter)}>
+                    <Plus className="w-3 h-3 mr-1" /> Add
+                </Button>
+            </div>
+            {items.map((item, i) => (
+                <div key={i} className="flex gap-2 items-center">
+                    <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
+                    <Input
+                        placeholder={placeholder}
+                        value={item}
+                        onChange={e => updateListItem(setter, i, e.target.value)}
+                        className="flex-1"
+                    />
+                    {items.length > 1 && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeListItem(setter, i)}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                    )}
+                </div>
+            ))}
+        </div>
+    )
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
@@ -191,8 +151,8 @@ export default function PrescriptionsPage() {
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold">Prescriptions</h1>
-                    <p className="text-muted-foreground">Digital prescriptions with PDF generation</p>
+                    <h1 className="text-2xl font-bold">Dental Prescriptions</h1>
+                    <p className="text-muted-foreground">Clinic letterhead Rx with symptoms, examinations, medication & lab orders</p>
                 </div>
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
@@ -200,15 +160,16 @@ export default function PrescriptionsPage() {
                             <Plus className="w-4 h-4 mr-1.5" /> New Prescription
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-                        <DialogHeader><DialogTitle>New Prescription</DialogTitle></DialogHeader>
-                        <div className="grid gap-4 py-4">
+                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader><DialogTitle>New Dental Prescription (Rx)</DialogTitle></DialogHeader>
+                        <div className="grid gap-5 py-4">
+                            {/* Patient + Doctor */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1.5">
                                     <Label>Patient *</Label>
                                     <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fPatient} onChange={e => setFPatient(e.target.value)}>
                                         <option value="">Select patient</option>
-                                        {patients.map(p => <option key={p.id} value={p.id}>{p.full_name}</option>)}
+                                        {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
                                     </select>
                                 </div>
                                 <div className="space-y-1.5">
@@ -219,34 +180,63 @@ export default function PrescriptionsPage() {
                                     </select>
                                 </div>
                             </div>
+
                             <div className="space-y-1.5">
-                                <Label>Diagnosis</Label>
-                                <Input placeholder="e.g., Acute Pulpitis" value={fDiagnosis} onChange={e => setFDiagnosis(e.target.value)} />
+                                <Label>Consultation Type</Label>
+                                <Input placeholder="e.g. Regular, Follow-up, Emergency" value={fConsultationType} onChange={e => setFConsultationType(e.target.value)} />
                             </div>
 
+                            {/* Symptoms */}
+                            {renderListField('Symptoms', symptoms, setSymptoms, 'e.g. Difficulty in chewing')}
+
+                            {/* Examinations */}
+                            {renderListField('Examinations', examinations, setExaminations, 'e.g. implants (44,45,46,31,34,36,37)')}
+
+                            {/* Medicines */}
                             <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                    <Label className="text-sm font-medium">Medicines</Label>
-                                    <Button type="button" variant="outline" size="sm" onClick={() => setMedicines(prev => [...prev, { name: '', dosage: '', frequency: '', duration: '' }])}>
-                                        <Plus className="w-3 h-3 mr-1" /> Add
+                                    <Label className="text-sm font-medium">Medication (Rx)</Label>
+                                    <Button type="button" variant="outline" size="sm" onClick={() => setMedicines(prev => [...prev, { ...BLANK_MED }])}>
+                                        <Plus className="w-3 h-3 mr-1" /> Add Medicine
                                     </Button>
                                 </div>
                                 {medicines.map((med, i) => (
-                                    <div key={i} className="grid grid-cols-[1fr_0.7fr_0.8fr_0.7fr_auto] gap-2 items-end">
-                                        <div className="space-y-1"><Label className="text-xs">Name</Label><Input placeholder="Amoxicillin" value={med.name} onChange={e => updateMedicine(i, 'name', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Dosage</Label><Input placeholder="500mg" value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Frequency</Label><Input placeholder="3x/day" value={med.frequency} onChange={e => updateMedicine(i, 'frequency', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Duration</Label><Input placeholder="7 days" value={med.duration} onChange={e => updateMedicine(i, 'duration', e.target.value)} /></div>
-                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedicines(prev => prev.filter((_, idx) => idx !== i))} disabled={medicines.length <= 1}>
-                                            <Trash2 className="w-4 h-4" />
-                                        </Button>
+                                    <div key={i} className="rounded-md border border-border/60 p-3 space-y-2">
+                                        <div className="grid grid-cols-[0.4fr_1fr_1fr_0.6fr] gap-2">
+                                            <div className="space-y-1"><Label className="text-xs">Form</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.form || 'Tab'} onChange={e => updateMedicine(i, 'form', e.target.value)}>
+                                                    <option>Tab</option><option>Cap</option><option>Syp</option><option>Inj</option><option>Drops</option><option>Gel</option><option>Oint</option><option>Mouth Wash</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1"><Label className="text-xs">Name *</Label><Input placeholder="Amoxicillin" value={med.name} onChange={e => updateMedicine(i, 'name', e.target.value)} /></div>
+                                            <div className="space-y-1"><Label className="text-xs">Generic / Composition</Label><Input placeholder="Amoxicillin+ clavulonic acid" value={med.generic_name || ''} onChange={e => updateMedicine(i, 'generic_name', e.target.value)} /></div>
+                                            <div className="space-y-1"><Label className="text-xs">Dose</Label><Input placeholder="500mg" value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} /></div>
+                                        </div>
+                                        <div className="grid grid-cols-[0.6fr_0.5fr_0.6fr_0.5fr_auto] gap-2 items-end">
+                                            <div className="space-y-1"><Label className="text-xs">Schedule (M-A-N)</Label><Input placeholder="1-0-1" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)} /></div>
+                                            <div className="space-y-1"><Label className="text-xs">Timing</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.timing || ''} onChange={e => updateMedicine(i, 'timing', e.target.value)}>
+                                                    <option value="">—</option><option>Before Food</option><option>After Food</option><option>With Food</option><option>Empty Stomach</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1"><Label className="text-xs">Duration</Label><Input placeholder="7 Day(s)" value={med.duration} onChange={e => updateMedicine(i, 'duration', e.target.value)} /></div>
+                                            <div className="space-y-1"><Label className="text-xs">Qty</Label><Input type="number" min={1} placeholder="14" value={med.quantity || ''} onChange={e => updateMedicine(i, 'quantity', e.target.value)} /></div>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedicines(prev => prev.filter((_, idx) => idx !== i))} disabled={medicines.length <= 1}><Trash2 className="w-4 h-4" /></Button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>
 
+                            {/* Advices */}
+                            {renderListField('Advices', advices, setAdvices, 'e.g. Avoid hard solid food')}
+
+                            {/* Lab Investigation */}
+                            {renderListField('Lab Investigation', labInvestigation, setLabInvestigation, 'e.g. OPG X-Ray')}
+
+                            {/* Follow-up */}
                             <div className="space-y-1.5">
-                                <Label>Instructions</Label>
-                                <Textarea placeholder="Take medicines after food, drink plenty of water..." value={fInstructions} onChange={e => setFInstructions(e.target.value)} rows={2} />
+                                <Label>Follow-up</Label>
+                                <Textarea placeholder="e.g. Review after 7 days" value={fFollowUp} onChange={e => setFFollowUp(e.target.value)} rows={2} />
                             </div>
                         </div>
                         <DialogFooter>
@@ -268,7 +258,7 @@ export default function PrescriptionsPage() {
                                 <TableRow>
                                     <TableHead>Patient</TableHead>
                                     <TableHead>Doctor</TableHead>
-                                    <TableHead>Diagnosis</TableHead>
+                                    <TableHead>Symptoms</TableHead>
                                     <TableHead>Medicines</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead className="w-10"></TableHead>
@@ -281,12 +271,12 @@ export default function PrescriptionsPage() {
                                     <TableRow key={rx.id}>
                                         <TableCell className="font-medium">{rx.patients?.full_name || '—'}</TableCell>
                                         <TableCell className="text-muted-foreground">{rx.doctors?.full_name || '—'}</TableCell>
-                                        <TableCell>{rx.diagnosis || '—'}</TableCell>
-                                        <TableCell><Badge variant="secondary">{rx.medicines?.length ?? 0} items</Badge></TableCell>
+                                        <TableCell><Badge variant="secondary">{(rx.symptoms?.length ?? 0)} items</Badge></TableCell>
+                                        <TableCell><Badge variant="secondary">{rx.medicines?.length ?? 0} meds</Badge></TableCell>
                                         <TableCell className="text-muted-foreground">{formatDate(rx.created_at)}</TableCell>
                                         <TableCell>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => generatePDF(rx)} title="Download PDF">
-                                                <Download className="w-4 h-4" />
+                                            <Button variant="outline" size="sm" onClick={() => handlePrint(rx)} title="Print Rx">
+                                                <Printer className="w-3.5 h-3.5 mr-1.5" /> Print
                                             </Button>
                                         </TableCell>
                                     </TableRow>

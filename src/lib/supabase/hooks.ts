@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import type {
     Patient, Doctor, Appointment, Visit, DentalChart,
     Prescription, Invoice, Hospital, HospitalService, Testimonial,
-    Notification, Treatment,
+    Notification, Treatment, DischargeChart,
 } from '@/types/database'
 
 const supabase = createClient()
@@ -983,6 +983,47 @@ export function useUpdateTreatment() {
         },
         onSuccess: (data) => {
             queryClient.invalidateQueries({ queryKey: ['treatments', data.hospital_id] })
+        },
+    })
+}
+
+// ============================================================
+// DISCHARGE CHARTS
+// ============================================================
+
+export function useDischargeCharts(hospitalId: string | null) {
+    return useQuery({
+        queryKey: ['discharge-charts', hospitalId],
+        queryFn: async () => {
+            if (!hospitalId) return []
+            const { data, error } = await supabase
+                .from('discharge_charts')
+                .select('*, patients(full_name, patient_id_number), doctors(full_name, qualification, license_number)')
+                .eq('hospital_id', hospitalId)
+                .order('created_at', { ascending: false })
+            if (error) throw error
+            return data as (DischargeChart & { patients?: { full_name: string; patient_id_number: string }; doctors?: { full_name: string; qualification: string; license_number: string } })[]
+        },
+        enabled: !!hospitalId,
+    })
+}
+
+export function useCreateDischargeChart() {
+    const queryClient = useQueryClient()
+    return useMutation({
+        mutationFn: async (chart: Partial<DischargeChart> & { hospital_id: string; patient_id: string; doctor_id: string }) => {
+            await assertHospitalWriteAccess(chart.hospital_id)
+
+            const { data, error } = await supabase
+                .from('discharge_charts')
+                .insert(chart)
+                .select()
+                .single()
+            if (error) throw toMutationError(error)
+            return data as DischargeChart
+        },
+        onSuccess: (data) => {
+            queryClient.invalidateQueries({ queryKey: ['discharge-charts', data.hospital_id] })
         },
     })
 }

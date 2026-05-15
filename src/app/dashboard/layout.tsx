@@ -35,6 +35,7 @@ import {
     Loader2,
     Hammer,
     AlertTriangle,
+    ClipboardCheck,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 
@@ -48,6 +49,7 @@ const NAV_ITEMS = [
     { href: '/dashboard/dental-chart', label: 'Dental Chart', icon: Activity },
     { href: '/dashboard/treatments', label: 'Treatments', icon: Hammer },
     { href: '/dashboard/prescriptions', label: 'Prescriptions', icon: FileText },
+    { href: '/dashboard/discharge', label: 'Discharge Chart', icon: ClipboardCheck },
     { href: '/dashboard/billing', label: 'Billing', icon: Receipt },
     { href: '/dashboard/reports', label: 'Reports', icon: BarChart3 },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings },

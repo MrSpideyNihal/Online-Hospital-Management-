@@ -40,6 +40,11 @@ export interface Hospital {
     subscription_end: string | null
     is_frozen: boolean
     owner_id: string | null
+    taglines: string[] | null
+    since_year: number | null
+    emergency_phone: string | null
+    rx_frequency_language: 'english' | 'marathi' | 'hindi'
+    institute_group_name: string | null
     created_at: string
     updated_at: string
 }
@@ -77,6 +82,8 @@ export interface Patient {
     notes: string | null
     qr_code: string | null
     last_visit: string | null
+    height: string | null
+    weight: string | null
     created_at: string
     updated_at: string
 }
@@ -184,6 +191,12 @@ export interface Prescription {
     instructions: string | null
     diagnosis: string | null
     pdf_url: string | null
+    symptoms: string[]
+    examinations: string[]
+    advices: string[]
+    lab_investigation: string[]
+    follow_up: string | null
+    consultation_type: string | null
     created_at: string
     // Joined
     patient?: Patient
@@ -192,9 +205,14 @@ export interface Prescription {
 
 export interface Medicine {
     name: string
+    generic_name?: string
     dosage: string
     frequency: string
     duration: string
+    form?: string           // Tab, Cap, Syp, etc.
+    quantity?: number
+    timing?: string         // Before Food / After Food
+    schedule?: string       // 1-0-1 format
     notes?: string
 }
 
@@ -213,10 +231,17 @@ export interface Invoice {
     payment_method: string | null
     paid_at: string | null
     notes: string | null
+    bill_type: 'treatment' | 'hospital'
+    admission_date: string | null
+    discharge_date: string | null
+    uhid: string | null
+    payment_mode: string | null
+    doctor_id: string | null
     created_at: string
     updated_at: string
     // Joined
     patient?: Patient
+    doctor?: Doctor
 }
 
 export interface InvoiceItem {
@@ -224,6 +249,29 @@ export interface InvoiceItem {
     quantity: number
     unit_price: number
     total: number
+}
+
+export interface DischargeChart {
+    id: string
+    hospital_id: string
+    patient_id: string
+    doctor_id: string
+    note_text: string | null
+    medications: DischargeMedication[]
+    created_at: string
+    updated_at: string
+    // Joined
+    patient?: Patient
+    doctor?: Doctor
+}
+
+export interface DischargeMedication {
+    sr: number
+    medicine_name: string
+    frequency: string
+    doses: string        // e.g. "1-0-1"
+    days: number
+    qty: string
 }
 
 export interface Notification {
