@@ -156,34 +156,50 @@ export default function DischargePage() {
                                 <Textarea placeholder="e.g. 7 दिवसांनी भेट या / Follow-up after 7 days" value={fNote} onChange={e => setFNote(e.target.value)} rows={2} />
                             </div>
 
-                            {/* Medications Table */}
-                            <div className="space-y-3">
+                            {/* Medications — simplified */}
+                            <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-sm font-medium">Rx Medications</Label>
                                     <Button type="button" variant="outline" size="sm" onClick={() => setMedications(prev => [...prev, { ...BLANK_MED, sr: prev.length + 1 }])}>
-                                        <Plus className="w-3 h-3 mr-1" /> Add Row
+                                        <Plus className="w-3 h-3 mr-1" /> Add
                                     </Button>
                                 </div>
                                 {medications.map((med, i) => (
-                                    <div key={i} className="rounded-md border border-border/60 p-3 grid grid-cols-[1fr_1.2fr_0.6fr_0.5fr_0.5fr_auto] gap-2 items-end">
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Medicine Name</Label>
-                                            <Input placeholder="TAB NIFTAS 100 MG" value={med.medicine_name} onChange={e => updateMed(i, 'medicine_name', e.target.value)} />
+                                    <div key={i} className="rounded-lg border border-border/60 p-3 space-y-2 bg-muted/20">
+                                        {/* Row 1: Medicine Name */}
+                                        <div className="grid grid-cols-[1fr_auto] gap-2 items-end">
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Medicine Name *</Label>
+                                                <Input placeholder="e.g. TAB NIFTAS 100 MG" value={med.medicine_name} onChange={e => updateMed(i, 'medicine_name', e.target.value)} />
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedications(prev => prev.filter((_, idx) => idx !== i))} disabled={medications.length <= 1}><Trash2 className="w-4 h-4" /></Button>
                                         </div>
-                                        <div className="space-y-1">
-                                            <Label className="text-xs">Frequency ({freqPresets.label})</Label>
-                                            <div className="flex gap-1">
-                                                <Input placeholder="Type or pick →" value={med.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)} className="flex-1" />
-                                                <select className="h-9 rounded-md border border-input bg-background px-1 text-xs w-8 shrink-0" onChange={e => { if (e.target.value) updateMed(i, 'frequency', e.target.value); e.target.value = '' }} defaultValue="">
-                                                    <option value="">▼</option>
+                                        {/* Row 2: Frequency + Doses + Days + Qty */}
+                                        <div className="grid grid-cols-4 gap-2">
+                                            <div className="space-y-1 col-span-2">
+                                                <Label className="text-[10px] text-muted-foreground">Frequency ({freqPresets.label})</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)}>
+                                                    <option value="">Select frequency</option>
                                                     {freqPresets.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                 </select>
                                             </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Doses</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.doses} onChange={e => updateMed(i, 'doses', e.target.value)}>
+                                                    <option value="1-0-1">1-0-1</option>
+                                                    <option value="1-1-1">1-1-1</option>
+                                                    <option value="1-0-0">1-0-0</option>
+                                                    <option value="0-0-1">0-0-1</option>
+                                                    <option value="0-1-0">0-1-0</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Days</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.days} onChange={e => updateMed(i, 'days', parseInt(e.target.value) || 7)}>
+                                                    <option value={3}>3</option><option value={5}>5</option><option value={7}>7</option><option value={10}>10</option><option value={14}>14</option><option value={15}>15</option><option value={30}>30</option>
+                                                </select>
+                                            </div>
                                         </div>
-                                        <div className="space-y-1"><Label className="text-xs">Doses</Label><Input placeholder="1-0-1" value={med.doses} onChange={e => updateMed(i, 'doses', e.target.value)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Days</Label><Input type="number" min={1} value={med.days} onChange={e => updateMed(i, 'days', parseInt(e.target.value) || 1)} /></div>
-                                        <div className="space-y-1"><Label className="text-xs">Qty</Label><Input placeholder="14" value={med.qty} onChange={e => updateMed(i, 'qty', e.target.value)} /></div>
-                                        <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedications(prev => prev.filter((_, idx) => idx !== i))} disabled={medications.length <= 1}><Trash2 className="w-4 h-4" /></Button>
                                     </div>
                                 ))}
                             </div>

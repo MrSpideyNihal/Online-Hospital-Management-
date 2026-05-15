@@ -35,28 +35,21 @@ export default function PrescriptionsPage() {
     const [fConsultationType, setFConsultationType] = useState('')
     const [fFollowUp, setFFollowUp] = useState('')
 
-    // List fields
-    const [symptoms, setSymptoms] = useState<string[]>([''])
-    const [examinations, setExaminations] = useState<string[]>([''])
-    const [advices, setAdvices] = useState<string[]>([''])
-    const [labInvestigation, setLabInvestigation] = useState<string[]>([''])
+    // Simple textarea fields — one item per line
+    const [symptomsText, setSymptomsText] = useState('')
+    const [examinationsText, setExaminationsText] = useState('')
+    const [advicesText, setAdvicesText] = useState('')
+    const [labText, setLabText] = useState('')
     const [medicines, setMedicines] = useState<Medicine[]>([{ ...BLANK_MED }])
 
     const resetForm = () => {
         setFPatient(''); setFDoctor(''); setFConsultationType(''); setFFollowUp('')
-        setSymptoms(['']); setExaminations(['']); setAdvices(['']); setLabInvestigation([''])
+        setSymptomsText(''); setExaminationsText(''); setAdvicesText(''); setLabText('')
         setMedicines([{ ...BLANK_MED }])
     }
 
-    const updateListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, idx: number, val: string) => {
-        setter(prev => prev.map((v, i) => i === idx ? val : v))
-    }
-    const addListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>) => {
-        setter(prev => [...prev, ''])
-    }
-    const removeListItem = (setter: React.Dispatch<React.SetStateAction<string[]>>, idx: number) => {
-        setter(prev => prev.filter((_, i) => i !== idx))
-    }
+    // Split textarea into array, filtering blanks
+    const textToArray = (text: string) => text.split('\n').map(s => s.trim()).filter(Boolean)
 
     const updateMedicine = (i: number, field: keyof Medicine, value: string | number) => {
         setMedicines(prev => prev.map((m, idx) => idx === i ? { ...m, [field]: value } : m))
@@ -94,10 +87,10 @@ export default function PrescriptionsPage() {
             diagnosis: null,
             instructions: null,
             medicines: validMeds,
-            symptoms: symptoms.filter(s => s.trim()),
-            examinations: examinations.filter(e => e.trim()),
-            advices: advices.filter(a => a.trim()),
-            lab_investigation: labInvestigation.filter(l => l.trim()),
+            symptoms: textToArray(symptomsText),
+            examinations: textToArray(examinationsText),
+            advices: textToArray(advicesText),
+            lab_investigation: textToArray(labText),
             follow_up: fFollowUp.trim() || null,
             consultation_type: fConsultationType.trim() || null,
         } as any, {
@@ -105,39 +98,6 @@ export default function PrescriptionsPage() {
             onError: (e: any) => toast.error(e.message),
         })
     }
-
-    // Numbered list field builder
-    const renderListField = (
-        label: string,
-        items: string[],
-        setter: React.Dispatch<React.SetStateAction<string[]>>,
-        placeholder: string,
-    ) => (
-        <div className="space-y-2">
-            <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">{label}</Label>
-                <Button type="button" variant="outline" size="sm" onClick={() => addListItem(setter)}>
-                    <Plus className="w-3 h-3 mr-1" /> Add
-                </Button>
-            </div>
-            {items.map((item, i) => (
-                <div key={i} className="flex gap-2 items-center">
-                    <span className="text-xs text-muted-foreground w-5 text-right shrink-0">{i + 1}.</span>
-                    <Input
-                        placeholder={placeholder}
-                        value={item}
-                        onChange={e => updateListItem(setter, i, e.target.value)}
-                        className="flex-1"
-                    />
-                    {items.length > 1 && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive shrink-0" onClick={() => removeListItem(setter, i)}>
-                            <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                    )}
-                </div>
-            ))}
-        </div>
-    )
 
     if (isLoading) {
         return <div className="min-h-[50vh] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
@@ -152,7 +112,7 @@ export default function PrescriptionsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold">Dental Prescriptions</h1>
-                    <p className="text-muted-foreground">Clinic letterhead Rx with symptoms, examinations, medication & lab orders</p>
+                    <p className="text-muted-foreground">Create and print clinic Rx prescriptions</p>
                 </div>
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
@@ -160,20 +120,20 @@ export default function PrescriptionsPage() {
                             <Plus className="w-4 h-4 mr-1.5" /> New Prescription
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader><DialogTitle>New Dental Prescription (Rx)</DialogTitle></DialogHeader>
-                        <div className="grid gap-5 py-4">
-                            {/* Patient + Doctor */}
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-1.5">
-                                    <Label>Patient *</Label>
+                    <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                        <DialogHeader><DialogTitle>New Prescription (Rx)</DialogTitle></DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            {/* Patient + Doctor — always needed */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-medium">Patient *</Label>
                                     <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fPatient} onChange={e => setFPatient(e.target.value)}>
                                         <option value="">Select patient</option>
                                         {patients.map(p => <option key={p.id} value={p.id}>{p.full_name} ({p.patient_id_number})</option>)}
                                     </select>
                                 </div>
-                                <div className="space-y-1.5">
-                                    <Label>Doctor *</Label>
+                                <div className="space-y-1">
+                                    <Label className="text-xs font-medium">Doctor *</Label>
                                     <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fDoctor} onChange={e => setFDoctor(e.target.value)}>
                                         <option value="">Select doctor</option>
                                         {doctors.filter(d => d.is_active).map(d => <option key={d.id} value={d.id}>{d.full_name}</option>)}
@@ -181,80 +141,110 @@ export default function PrescriptionsPage() {
                                 </div>
                             </div>
 
-                            <div className="space-y-1.5">
-                                <Label>Consultation Type</Label>
-                                <Input placeholder="e.g. Regular, Follow-up, Emergency" value={fConsultationType} onChange={e => setFConsultationType(e.target.value)} />
+                            {/* Consultation Type */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Consultation Type</Label>
+                                <select className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm" value={fConsultationType} onChange={e => setFConsultationType(e.target.value)}>
+                                    <option value="">Select type</option>
+                                    <option>Regular</option>
+                                    <option>Follow-up</option>
+                                    <option>Emergency</option>
+                                    <option>Referral</option>
+                                </select>
                             </div>
 
-                            {/* Symptoms */}
-                            {renderListField('Symptoms', symptoms, setSymptoms, 'e.g. Difficulty in chewing')}
+                            {/* Symptoms — simple textarea */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Symptoms <span className="text-muted-foreground font-normal">(one per line)</span></Label>
+                                <Textarea placeholder={"Difficulty in chewing\nPain in lower jaw\nSensitivity to cold"} value={symptomsText} onChange={e => setSymptomsText(e.target.value)} rows={3} className="text-sm" />
+                            </div>
 
-                            {/* Examinations */}
-                            {renderListField('Examinations', examinations, setExaminations, 'e.g. implants (44,45,46,31,34,36,37)')}
+                            {/* Examinations — simple textarea */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Examinations <span className="text-muted-foreground font-normal">(one per line)</span></Label>
+                                <Textarea placeholder={"implants (44,45,46,31,34,36,37)\ncrown (31,32,41,42,43,44)\nCaries (33,34,35,43,44)"} value={examinationsText} onChange={e => setExaminationsText(e.target.value)} rows={3} className="text-sm" />
+                            </div>
 
-                            {/* Medicines */}
-                            <div className="space-y-3">
+                            {/* Medicines — simplified cards */}
+                            <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                     <Label className="text-sm font-medium">Medication (Rx)</Label>
                                     <Button type="button" variant="outline" size="sm" onClick={() => setMedicines(prev => [...prev, { ...BLANK_MED }])}>
-                                        <Plus className="w-3 h-3 mr-1" /> Add Medicine
+                                        <Plus className="w-3 h-3 mr-1" /> Add
                                     </Button>
                                 </div>
-                                {/* Schedule preset language note */}
-                                <div className="flex flex-wrap gap-1.5 items-center">
-                                    <span className="text-xs text-muted-foreground">Quick Schedule:</span>
-                                    {[
-                                        { label: '1-0-1', value: '1-0-1' },
-                                        { label: '1-1-1', value: '1-1-1' },
-                                        { label: '1-0-0', value: '1-0-0' },
-                                        { label: '0-0-1', value: '0-0-1' },
-                                        { label: 'सुबह-दोपहर-रात (1-1-1)', value: 'सुबह-दोपहर-रात (1-1-1)' },
-                                        { label: 'सुबह-रात (1-0-1)', value: 'सुबह-रात (1-0-1)' },
-                                        { label: 'सुबह (1-0-0)', value: 'सकाळ (1-0-0)' },
-                                    ].map(preset => (
-                                        <Badge key={preset.value} variant="outline" className="text-[10px] cursor-pointer hover:bg-primary/10" onClick={() => {
-                                            // Apply to last medicine
-                                            if (medicines.length > 0) updateMedicine(medicines.length - 1, 'schedule', preset.value)
-                                        }}>{preset.label}</Badge>
-                                    ))}
-                                </div>
                                 {medicines.map((med, i) => (
-                                    <div key={i} className="rounded-md border border-border/60 p-3 space-y-2">
-                                        <div className="grid grid-cols-[0.4fr_1fr_1fr_0.6fr] gap-2">
-                                            <div className="space-y-1"><Label className="text-xs">Form</Label>
-                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.form || 'Tab'} onChange={e => updateMedicine(i, 'form', e.target.value)}>
+                                    <div key={i} className="rounded-lg border border-border/60 p-3 space-y-2 bg-muted/20">
+                                        {/* Row 1: Essential — Name + Form */}
+                                        <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-end">
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Form</Label>
+                                                <select className="h-9 rounded-md border border-input bg-background px-2 text-sm w-20" value={med.form || 'Tab'} onChange={e => updateMedicine(i, 'form', e.target.value)}>
                                                     <option>Tab</option><option>Cap</option><option>Syp</option><option>Inj</option><option>Drops</option><option>Gel</option><option>Oint</option><option>Mouth Wash</option>
                                                 </select>
                                             </div>
-                                            <div className="space-y-1"><Label className="text-xs">Name *</Label><Input placeholder="Amoxicillin" value={med.name} onChange={e => updateMedicine(i, 'name', e.target.value)} /></div>
-                                            <div className="space-y-1"><Label className="text-xs">Generic / Composition</Label><Input placeholder="Amoxicillin+ clavulonic acid" value={med.generic_name || ''} onChange={e => updateMedicine(i, 'generic_name', e.target.value)} /></div>
-                                            <div className="space-y-1"><Label className="text-xs">Dose</Label><Input placeholder="500mg" value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} /></div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Medicine Name *</Label>
+                                                <Input placeholder="e.g. Amoxicillin 500mg" value={med.name} onChange={e => updateMedicine(i, 'name', e.target.value)} />
+                                            </div>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedicines(prev => prev.filter((_, idx) => idx !== i))} disabled={medicines.length <= 1}><Trash2 className="w-4 h-4" /></Button>
                                         </div>
-                                        <div className="grid grid-cols-[0.6fr_0.5fr_0.6fr_0.5fr_auto] gap-2 items-end">
-                                            <div className="space-y-1"><Label className="text-xs">Schedule (M-A-N)</Label><Input placeholder="1-0-1 or सुबह-रात" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)} /></div>
-                                            <div className="space-y-1"><Label className="text-xs">Timing</Label>
-                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.timing || ''} onChange={e => updateMedicine(i, 'timing', e.target.value)}>
-                                                    <option value="">—</option><option>Before Food</option><option>After Food</option><option>With Food</option><option>Empty Stomach</option>
+                                        {/* Row 2: Schedule + Timing + Duration */}
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Schedule</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)}>
+                                                    <option value="1-0-1">1-0-1 (Morning-Night)</option>
+                                                    <option value="1-1-1">1-1-1 (Thrice daily)</option>
+                                                    <option value="1-0-0">1-0-0 (Morning only)</option>
+                                                    <option value="0-0-1">0-0-1 (Night only)</option>
+                                                    <option value="0-1-0">0-1-0 (Afternoon only)</option>
+                                                    <option value="1-1-0">1-1-0 (Morning-Afternoon)</option>
+                                                    <option value="सुबह-रात (1-0-1)">सुबह-रात (1-0-1)</option>
+                                                    <option value="सुबह-दोपहर-रात (1-1-1)">सुबह-दोपहर-रात (1-1-1)</option>
+                                                    <option value="सकाळ-रात्री (1-0-1)">सकाळ-रात्री (1-0-1)</option>
                                                 </select>
                                             </div>
-                                            <div className="space-y-1"><Label className="text-xs">Duration</Label><Input placeholder="7 Day(s)" value={med.duration} onChange={e => updateMedicine(i, 'duration', e.target.value)} /></div>
-                                            <div className="space-y-1"><Label className="text-xs">Qty</Label><Input type="number" min={1} placeholder="14" value={med.quantity || ''} onChange={e => updateMedicine(i, 'quantity', e.target.value)} /></div>
-                                            <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" onClick={() => setMedicines(prev => prev.filter((_, idx) => idx !== i))} disabled={medicines.length <= 1}><Trash2 className="w-4 h-4" /></Button>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Timing</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.timing || ''} onChange={e => updateMedicine(i, 'timing', e.target.value)}>
+                                                    <option>After Food</option><option>Before Food</option><option>With Food</option><option>Empty Stomach</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <Label className="text-[10px] text-muted-foreground">Duration</Label>
+                                                <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.duration || ''} onChange={e => updateMedicine(i, 'duration', e.target.value)}>
+                                                    <option value="">Select</option>
+                                                    <option>3 Day(s)</option><option>5 Day(s)</option><option>7 Day(s)</option><option>10 Day(s)</option><option>14 Day(s)</option><option>15 Day(s)</option><option>30 Day(s)</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        {/* Row 3: Optional extras — collapsed feel */}
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Generic / Composition</Label><Input placeholder="Optional" value={med.generic_name || ''} onChange={e => updateMedicine(i, 'generic_name', e.target.value)} className="h-8 text-xs" /></div>
+                                            <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Dose</Label><Input placeholder="500mg" value={med.dosage} onChange={e => updateMedicine(i, 'dosage', e.target.value)} className="h-8 text-xs" /></div>
+                                            <div className="space-y-1"><Label className="text-[10px] text-muted-foreground">Qty</Label><Input type="number" min={1} placeholder="14" value={med.quantity || ''} onChange={e => updateMedicine(i, 'quantity', e.target.value)} className="h-8 text-xs" /></div>
                                         </div>
                                     </div>
                                 ))}
                             </div>
 
-                            {/* Advices */}
-                            {renderListField('Advices', advices, setAdvices, 'e.g. Avoid hard solid food')}
+                            {/* Advices — simple textarea */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Advices <span className="text-muted-foreground font-normal">(one per line)</span></Label>
+                                <Textarea placeholder={"Avoid hard solid food\nAdviced soft diet\nWarm saline gargles three times a day"} value={advicesText} onChange={e => setAdvicesText(e.target.value)} rows={3} className="text-sm" />
+                            </div>
 
-                            {/* Lab Investigation */}
-                            {renderListField('Lab Investigation', labInvestigation, setLabInvestigation, 'e.g. OPG X-Ray')}
+                            {/* Lab Investigation — simple textarea */}
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Lab Investigation <span className="text-muted-foreground font-normal">(one per line)</span></Label>
+                                <Textarea placeholder={"OPG X-Ray\nCBCT (3D)\nBlood sugar fasting"} value={labText} onChange={e => setLabText(e.target.value)} rows={2} className="text-sm" />
+                            </div>
 
                             {/* Follow-up */}
-                            <div className="space-y-1.5">
-                                <Label>Follow-up</Label>
-                                <Textarea placeholder="e.g. Review after 7 days" value={fFollowUp} onChange={e => setFFollowUp(e.target.value)} rows={2} />
+                            <div className="space-y-1">
+                                <Label className="text-xs font-medium">Follow-up</Label>
+                                <Input placeholder="e.g. Review after 7 days" value={fFollowUp} onChange={e => setFFollowUp(e.target.value)} />
                             </div>
                         </div>
                         <DialogFooter>
