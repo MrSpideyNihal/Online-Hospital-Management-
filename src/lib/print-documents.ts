@@ -232,7 +232,8 @@ table.med-table td:first-child{width:30px;text-align:center}
     ${sinceYear ? `<div class="since-badge">${esc(sinceYear)}</div>` : ''}
   </div>
   <div class="patient-bar">
-    <div><span>Patient Name & Patient id: </span><strong>${esc(p?.full_name || '—')}, ${esc(p?.patient_id_number || '—')}</strong></div>
+    <div><span>Patient Name: </span><strong>${esc(p?.full_name || '—')}</strong></div>
+    <div><span>Registration ID: </span><strong>${esc(p?.patient_id_number || '—')}</strong></div>
     <div><span>Date & Time: </span><strong>${fmtDateTime(rx.created_at)}</strong></div>
     <div><span>Age/Gender: </span><strong>${esc(p?.date_of_birth ? Math.floor((Date.now() - new Date(p.date_of_birth).getTime()) / 31557600000) + 'y' : '—')}, ${esc(p?.gender ? p.gender.charAt(0).toUpperCase() + p.gender.slice(1) : '—')}</strong></div>
     <div><span>Mobile No: </span><strong>${esc(p?.phone || '—')}</strong></div>
