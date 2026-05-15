@@ -39,9 +39,22 @@ const fmtDateTime = (d: string | Date | null | undefined) => {
 function openPrintWindow(html: string, _title: string) {
   if (typeof window === 'undefined') return
 
-  // Use a hidden iframe to avoid popup blockers
+  // Clean up any leftover frame from previous print
   const existingFrame = document.getElementById('__print_frame') as HTMLIFrameElement | null
   if (existingFrame) existingFrame.remove()
+  const existingOverlay = document.getElementById('__print_overlay')
+  if (existingOverlay) existingOverlay.remove()
+
+  // Create a backdrop overlay with a visible close button so users can always dismiss
+  const overlay = document.createElement('div')
+  overlay.id = '__print_overlay'
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:99998;background:rgba(0,0,0,0.3);'
+  const closeOverlayBtn = document.createElement('button')
+  closeOverlayBtn.textContent = '✕ Close Preview'
+  closeOverlayBtn.style.cssText = 'position:fixed;top:12px;right:12px;z-index:100001;background:#111;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.3);'
+  closeOverlayBtn.onclick = () => { iframe.remove(); overlay.remove() }
+  overlay.appendChild(closeOverlayBtn)
+  document.body.appendChild(overlay)
 
   const iframe = document.createElement('iframe')
   iframe.id = '__print_frame'
@@ -49,24 +62,32 @@ function openPrintWindow(html: string, _title: string) {
   document.body.appendChild(iframe)
 
   const doc = iframe.contentDocument || iframe.contentWindow?.document
-  if (!doc) { iframe.remove(); return }
+  if (!doc) { iframe.remove(); overlay.remove(); return }
 
   doc.open()
   doc.write(html)
   doc.close()
 
-  // Replace "Close" button behavior to remove iframe instead of window.close()
+  const cleanup = () => { iframe.remove(); overlay.remove() }
+
+  // Replace "Close" button behavior inside the iframe
   iframe.contentWindow?.addEventListener('load', () => {
     const closeBtn = doc.querySelector('.btn:not(.primary)') as HTMLButtonElement | null
-    if (closeBtn) {
-      closeBtn.onclick = () => iframe.remove()
-    }
+    if (closeBtn) closeBtn.onclick = cleanup
   })
 
-  // Also allow Escape key to close
+  // Auto-cleanup after printing
+  iframe.contentWindow?.addEventListener('afterprint', cleanup)
+
+  // Escape key to close
   iframe.contentWindow?.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key === 'Escape') iframe.remove()
+    if (e.key === 'Escape') cleanup()
   })
+  // Also listen on parent window for Escape
+  const parentEscHandler = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') { cleanup(); window.removeEventListener('keydown', parentEscHandler) }
+  }
+  window.addEventListener('keydown', parentEscHandler)
 }
 
 function hospitalAddress(h: Hospital | null) {

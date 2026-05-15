@@ -76,6 +76,14 @@ export default function DashboardLayout({
 
     useEffect(() => { setMounted(true) }, [])
 
+    // Clean up print preview iframe/overlay on route change so sidebar stays clickable
+    useEffect(() => {
+        const frame = document.getElementById('__print_frame')
+        const overlay = document.getElementById('__print_overlay')
+        if (frame) frame.remove()
+        if (overlay) overlay.remove()
+    }, [pathname])
+
     // Auth guard — redirect to login if not authenticated
     useEffect(() => {
         if (!isLoading && !user) {
