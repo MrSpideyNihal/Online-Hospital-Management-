@@ -18,7 +18,9 @@ import { useAuth } from '@/lib/auth-context'
 import { usePrescriptions, useCreatePrescription, usePatients, useDoctors } from '@/lib/supabase/hooks'
 import { printDentalRx } from '@/lib/print-documents'
 import { toast } from 'sonner'
+import { SCHEDULE_PRESETS, TIMING_PRESETS } from '@/lib/rx-presets'
 import type { Medicine } from '@/types/database'
+import type { RxLang } from '@/lib/rx-presets'
 
 const BLANK_MED: Medicine = { name: '', generic_name: '', dosage: '', frequency: '', duration: '', form: 'Tab', timing: 'After Food', schedule: '1-0-1' }
 
@@ -28,6 +30,9 @@ export default function PrescriptionsPage() {
     const { data: patients = [] } = usePatients(hospitalId)
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createPrescription = useCreatePrescription()
+    const rxLang = (hospital?.rx_frequency_language || 'english') as RxLang
+    const scheduleOpts = SCHEDULE_PRESETS[rxLang] || SCHEDULE_PRESETS.english
+    const timingOpts = TIMING_PRESETS[rxLang] || TIMING_PRESETS.english
 
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [fPatient, setFPatient] = useState('')
@@ -194,21 +199,13 @@ export default function PrescriptionsPage() {
                                             <div className="space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground">Schedule</Label>
                                                 <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.schedule || ''} onChange={e => updateMedicine(i, 'schedule', e.target.value)}>
-                                                    <option value="1-0-1">1-0-1 (Morning-Night)</option>
-                                                    <option value="1-1-1">1-1-1 (Thrice daily)</option>
-                                                    <option value="1-0-0">1-0-0 (Morning only)</option>
-                                                    <option value="0-0-1">0-0-1 (Night only)</option>
-                                                    <option value="0-1-0">0-1-0 (Afternoon only)</option>
-                                                    <option value="1-1-0">1-1-0 (Morning-Afternoon)</option>
-                                                    <option value="सुबह-रात (1-0-1)">सुबह-रात (1-0-1)</option>
-                                                    <option value="सुबह-दोपहर-रात (1-1-1)">सुबह-दोपहर-रात (1-1-1)</option>
-                                                    <option value="सकाळ-रात्री (1-0-1)">सकाळ-रात्री (1-0-1)</option>
+                                                    {scheduleOpts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                 </select>
                                             </div>
                                             <div className="space-y-1">
                                                 <Label className="text-[10px] text-muted-foreground">Timing</Label>
                                                 <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.timing || ''} onChange={e => updateMedicine(i, 'timing', e.target.value)}>
-                                                    <option>After Food</option><option>Before Food</option><option>With Food</option><option>Empty Stomach</option>
+                                                    {timingOpts.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                 </select>
                                             </div>
                                             <div className="space-y-1">

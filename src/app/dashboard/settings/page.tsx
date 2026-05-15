@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import {
     Building2, Palette, MapPin, QrCode, Save, Upload, Loader2, ExternalLink, Plus, Trash2,
 } from 'lucide-react'
+import { RX_LANGUAGES } from '@/lib/rx-presets'
 import { useAuth } from '@/lib/auth-context'
 import {
     useUpdateHospital,
@@ -42,6 +43,7 @@ export default function SettingsPage() {
     const [aboutText, setAboutText] = useState('')
     const [mission, setMission] = useState('')
     const [mapEmbed, setMapEmbed] = useState('')
+    const [rxFreqLanguage, setRxFreqLanguage] = useState('english')
 
     const [newProcedureName, setNewProcedureName] = useState('')
     const [newProcedureFee, setNewProcedureFee] = useState('')
@@ -71,6 +73,7 @@ export default function SettingsPage() {
             setAboutText(hospital.about_text || '')
             setMission(hospital.mission || '')
             setMapEmbed(hospital.map_embed_url || '')
+            setRxFreqLanguage(hospital.rx_frequency_language || 'english')
         }
     }, [hospital])
 
@@ -251,7 +254,7 @@ export default function SettingsPage() {
             Object.assign(updates, { name: hospitalName, email, phone, about_text: aboutText, mission })
         }
         if (!section || section === 'branding') {
-            Object.assign(updates, { primary_color: primaryColor, secondary_color: secondaryColor })
+            Object.assign(updates, { primary_color: primaryColor, secondary_color: secondaryColor, rx_frequency_language: rxFreqLanguage })
         }
         if (!section || section === 'location') {
             Object.assign(updates, { address, city, state, pincode, map_embed_url: mapEmbed })
@@ -366,6 +369,19 @@ export default function SettingsPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            <Separator />
+
+                            {/* Prescription Language */}
+                            <div className="space-y-2">
+                                <Label>Prescription Language</Label>
+                                <p className="text-xs text-muted-foreground">Controls Schedule, Timing and Frequency labels in Prescription & Discharge forms</p>
+                                <select className="w-full sm:w-64 h-9 rounded-md border border-input bg-background px-3 text-sm" value={rxFreqLanguage} onChange={e => setRxFreqLanguage(e.target.value)}>
+                                    {RX_LANGUAGES.map(lang => <option key={lang.value} value={lang.value}>{lang.label}</option>)}
+                                </select>
+                            </div>
+
+                            <Separator />
 
                             {/* Preview */}
                             <div className="space-y-2">

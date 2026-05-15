@@ -18,39 +18,9 @@ import { useAuth } from '@/lib/auth-context'
 import { useDischargeCharts, useCreateDischargeChart, usePatients, useDoctors } from '@/lib/supabase/hooks'
 import { printDischargeChart } from '@/lib/print-documents'
 import { toast } from 'sonner'
+import { FREQUENCY_PRESETS, RX_LANGUAGES } from '@/lib/rx-presets'
 import type { DischargeMedication } from '@/types/database'
-
-const FREQ_PRESETS: Record<string, { label: string; options: { value: string; label: string }[] }> = {
-    english: {
-        label: 'English',
-        options: [
-            { value: 'Morning and Night After Food', label: 'Morning & Night After Food' },
-            { value: 'Morning, Afternoon and Night After Food', label: 'Morning, Afternoon & Night After Food' },
-            { value: 'Morning After Food', label: 'Morning After Food' },
-            { value: 'Night After Food', label: 'Night After Food' },
-            { value: 'As needed', label: 'As Needed (SOS)' },
-        ],
-    },
-    marathi: {
-        label: 'मराठी',
-        options: [
-            { value: 'सकाळी आणि रात्री जेवणानंतर', label: 'सकाळी आणि रात्री जेवणानंतर' },
-            { value: 'सकाळी जेवणाआधी', label: 'सकाळी जेवणाआधी' },
-            { value: 'सकाळी आणि रात्री जेवणानंतर', label: 'सकाळी आणि रात्री जेवणानंतर' },
-            { value: 'सकाळी दुपारी आणि रात्री जेवणानंतर', label: 'सकाळी दुपारी आणि रात्री जेवणानंतर' },
-            { value: 'गरज असल्यास', label: 'गरज असल्यास (SOS)' },
-        ],
-    },
-    hindi: {
-        label: 'हिंदी',
-        options: [
-            { value: 'सुबह और रात खाने के बाद', label: 'सुबह और रात खाने के बाद' },
-            { value: 'सुबह खाने से पहले', label: 'सुबह खाने से पहले' },
-            { value: 'सुबह दोपहर और रात खाने के बाद', label: 'सुबह दोपहर और रात खाने के बाद' },
-            { value: 'जरूरत अनुसार', label: 'जरूरत अनुसार (SOS)' },
-        ],
-    },
-}
+import type { RxLang } from '@/lib/rx-presets'
 
 const BLANK_MED: DischargeMedication = { sr: 1, medicine_name: '', frequency: '', doses: '1-0-1', days: 7, qty: '' }
 
@@ -61,8 +31,9 @@ export default function DischargePage() {
     const { data: doctors = [] } = useDoctors(hospitalId)
     const createChart = useCreateDischargeChart()
 
-    const freqLang = hospital?.rx_frequency_language || 'english'
-    const freqPresets = FREQ_PRESETS[freqLang] || FREQ_PRESETS.english
+    const rxLang = (hospital?.rx_frequency_language || 'english') as RxLang
+    const freqPresets = FREQUENCY_PRESETS[rxLang] || FREQUENCY_PRESETS.english
+    const freqLangLabel = RX_LANGUAGES.find(l => l.value === rxLang)?.label || 'English'
 
     const [isAddOpen, setIsAddOpen] = useState(false)
     const [fPatient, setFPatient] = useState('')
@@ -123,7 +94,7 @@ export default function DischargePage() {
                 <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-teal-700 dark:text-teal-300">Post-Discharge</p>
                     <h1 className="text-2xl font-bold">Discharge Medication Charts</h1>
-                    <p className="text-muted-foreground">Create discharge Rx with regional language frequency support ({freqPresets.label})</p>
+                    <p className="text-muted-foreground">Create discharge Rx with regional language frequency support ({freqLangLabel})</p>
                 </div>
                 <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
                     <DialogTrigger asChild>
@@ -177,10 +148,10 @@ export default function DischargePage() {
                                         {/* Row 2: Frequency + Doses + Days + Qty */}
                                         <div className="grid grid-cols-4 gap-2">
                                             <div className="space-y-1 col-span-2">
-                                                <Label className="text-[10px] text-muted-foreground">Frequency ({freqPresets.label})</Label>
+                                                <Label className="text-[10px] text-muted-foreground">Frequency ({freqLangLabel})</Label>
                                                 <select className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm" value={med.frequency} onChange={e => updateMed(i, 'frequency', e.target.value)}>
                                                     <option value="">Select frequency</option>
-                                                    {freqPresets.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                                    {freqPresets.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                                 </select>
                                             </div>
                                             <div className="space-y-1">
